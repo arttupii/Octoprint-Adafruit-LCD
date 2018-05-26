@@ -87,7 +87,7 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
         lcd = LCD.Adafruit_CharLCDPlate()
         lcd.message(message)
 
-__plugin_name__ = "PiPrint Plugin"
+__plugin_name__ = "Adafruit 16x2 LCD"
 
 def __plugin_load__():
     global __plugin_implementation__
