@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 import Adafruit_CharLCD as LCD
 import octoprint.plugin
+import math
 
 class PiprintPlugin(octoprint.plugin.StartupPlugin,
                     octoprint.plugin.ProgressPlugin,
@@ -28,23 +29,25 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
 
     __lcd = None
 
+    __filename = ""
+
     def on_after_startup(self):
         """
         Runs when plugin is started. Turn on and clear the LCD.
         """
         self._logger.info("PiPrint starting")
-        self.__lcd = LCD.Adafruit_CharLCDPlate()
+        lcd = self._get_lcd()
 
         # create the loading characters
-        cls.lcd.create_char(self.__2perc, [16, 16, 16, 16, 16, 16, 16, 0])
-        self.lcd.create_char(self.__4perc, [24, 24, 24, 24, 24, 24, 24, 0])
-        self.lcd.create_char(self.__6perc, [28, 28, 28, 28, 28, 28, 28, 0])
-        self.lcd.create_char(self.__8perc, [30, 30, 30, 30, 30, 30, 30, 0])
-        self.lcd.create_char(self.__10perc,[31, 31, 31, 31, 31, 31, 31, 0])
+        lcd.create_char(self.__2perc, [16, 16, 16, 16, 16, 16, 16, 0])
+        lcd.create_char(self.__4perc, [24, 24, 24, 24, 24, 24, 24, 0])
+        lcd.create_char(self.__6perc, [28, 28, 28, 28, 28, 28, 28, 0])
+        lcd.create_char(self.__8perc, [30, 30, 30, 30, 30, 30, 30, 0])
+        lcd.create_char(self.__10perc,[31, 31, 31, 31, 31, 31, 31, 0])
 
-        self.lcd.clear()
+        lcd.clear()
 
-        self._turn_lcd_on(True)
+        self._turn_lcd_off(True)
         
 
     def on_event(self, event, payload):
@@ -53,13 +56,38 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
         :param event: Event which just happened.
         :param payload: Dictionary of data passed with the event
         """
-        # Only handle print events
-        if 'Print' in event:
-            useful_print_events = ['Resumed', 'Started']
-            if any(e in event for e in useful_print_events):
-                self.__class__._write_to_lcd(str(event), 0)
-            else:
-                self.__class__._turn_lcd_off()
+        # events to print the name of
+        useful_events = ['Connected', 'PrintPaused', 'PrintResumed', 'PrintStarted']
+        if any(e in event for e in useful_events):
+            self.__class__._write_to_lcd(event, 0)
+
+        lcd = self.__class__._get_lcd()
+
+        #custom implementation for events
+
+        if 'Disconnected' in event:
+            lcd.clear()
+            self.__class__._turn_lcd_off()
+        
+        if 'Connected' in event:
+            self.__class__._turn_lcd_on()
+        
+        if 'Error' in event:
+            self.__class__._write_to_lcd("%s:%s" % (event, payload["error"]), 0)
+        
+        if 'PrintDone' in event:
+            self.__class__._write_to_lcd("Print Done", 0)
+            seconds = payload["time"]
+            hours = math.floor(seconds / 3600)
+            minutes = math.floor(seconds / 60) % 60
+            self.__class__._write_to_lcd("Time: %d h,%d m" % (hours, minutes), 1)
+        
+        if 'PrintStarted' in event:
+            name = payload["name"]
+            self.__class__._write_to_lcd(payload["name"], 1)
+            self.__class__.__filename = payload["name"]
+
+        
 
     def on_print_progress(self, storage, path, progress):
         """
@@ -71,7 +99,10 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
         if not self._printer.is_printing():
             return
         
-        self.__class__._write_to_lcd("Printing", 0)
+        if progress == 0:
+            return
+
+        self.__class__._write_to_lcd(self.__class__.__filename, 0)
         self.__class__._write_to_lcd(self.__class__._format_progress_bar(progress), 1)
 
     def on_shutdown(self):
@@ -108,8 +139,10 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
         Turn the LCD off by setting the backlight to zero.
         :param force: ignore the __lcd_state value
         """
+        lcd = cls._get_lcd()
+
         if cls.__lcd_state or force:
-            cls.lcd.set_backlight(0)
+            lcd.set_backlight(0)
             cls.__lcd_state = False
 
     @classmethod
@@ -118,20 +151,27 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
         Turn the LCD on by setting the backlight to one.
         :param force: ignore the __lcd_state value
         """
+        lcd = cls._get_lcd()
+
         if not cls.__lcd_state or force:
-            cls.lcd.set_backlight(1.0)
+            lcd.set_backlight(1.0)
             cls.__lcd_state = True
 
     @classmethod
-    def _write_to_lcd(cls, message, row, column=0):
+    def _write_to_lcd(cls, message, row, clear=True, column=0):
         """
         Write a string message to the LCD. Displays the text on the LCD display.
         :param message: Message to display on the LCD
         :param row: Line number to display the text
+        :param clear: clear the line
         :param column: position to start writing
         """
+        lcd = cls._get_lcd()
+
         # make sure the message fits in the display
         message = message[:cls.__lcd_width - column]
+        if clear:
+            message = message + (" " * (cls.__lcd_width - len(message)))
 
         cls._turn_lcd_on()
 
@@ -140,9 +180,9 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
 
         #print the whole string if it has changed too much
         if len(diff) > 4:
-            cls.lcd.set_cursor(column, row)
+            lcd.set_cursor(column, row)
             for char in message:
-                cls.lcd.write8(ord(char), True)
+                lcd.write8(ord(char), True)
             cls.__current_lcd_text[row] = cls.__current_lcd_text[row][column:] + message
             return
         
@@ -150,8 +190,8 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
 
         #write only the different characters
         for i in diff:
-            cls.lcd.set_cursor(column + i, row)
-            cls.lcd.write8(ord(message[i]), True)
+            lcd.set_cursor(column + i, row)
+            lcd.write8(ord(message[i]), True)
             m[column + i] = message[i]
         
         cls.__current_lcd_text[row] = "".join(m)
@@ -165,6 +205,12 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
         :param str2: string 2
         """
         return [i for i in xrange(min(len(str1), len(str2))) if str1[i] != str2[i]]
+    
+    @classmethod
+    def _get_lcd(cls):
+        if cls.__lcd == None:
+            cls.__lcd = LCD.Adafruit_CharLCDPlate()
+        return cls.__lcd
 
 __plugin_name__ = "Adafruit 16x2 LCD"
 
