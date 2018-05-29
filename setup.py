@@ -20,10 +20,10 @@ plugin_version = "0.2.0"
 plugin_description = """Displays OctoPrint status on an Adafruit LCD attached to a Raspberry Pi"""
 
 # The plugin's author. Can be overwritten within OctoPrint's internal data via __plugin_author__ in the plugin module
-plugin_author = "Benjamin Jacobs"
+plugin_author = "James Malone, Benjamin Jacobs"
 
 # The plugin's author's mail address.
-plugin_author_email = "benjammin1100@gmail.com"
+plugin_author_email = "jamalone@gmail.com, benjammin1100@gmail.com"
 
 # The plugin's homepage URL. Can be overwritten within OctoPrint's internal data via __plugin_url__ in the plugin module
 plugin_url = "https://github.com/ttocsneb/OctoPrint-Adafruit-LCD"
