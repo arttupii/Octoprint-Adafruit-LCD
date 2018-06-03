@@ -1,4 +1,4 @@
-# OctoPrint-Piprint
+# Adafruit 16x2 LCD 
 
 Displays printer progress while printing on a [Adafruit 16x2 LCD](https://www.adafruit.com/product/1115) attached 
 to a [Rasperry Pi](http://www.raspberrypi.org). This makes it easy to see print progress without the need to look 
@@ -50,7 +50,7 @@ Both the smbus and i2c-tools packages should be installed, before installing the
 ### Install instructions
 Install via the bundled [Plugin Manager](https://github.com/foosel/OctoPrint/wiki/Plugin:-Plugin-Manager) using this URL:
 
-    https://github.com/evilsoapbox/OctoPrint-Piprint/archive/master.zip
+    https://github.com/ttocsneb/Octoprint-Adafruit-LCD/archive/master.zip
 
 ### Troubleshooting
 
