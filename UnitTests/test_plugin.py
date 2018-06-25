@@ -38,23 +38,30 @@ class TestPlugin(unittest.TestCase):
         plugin._printer = printer()
 
 
+        plugin.on_startup(None, None)
         plugin.on_after_startup()
 
         return plugin
     
+    def getLCD(self, plugin):
+        return plugin._Adafruit_16x2_LCD__lcd
+    
+    def getLCDBuffer(self, plugin, row):
+        return plugin._Adafruit_16x2_LCD__current_lcd_text[row]
+
     def assertTwoLines(self, plugin, line1, line2):
-        self.assertEqual(plugin._get_lcd().getLCDText(0), line1)
-        self.assertEqual(plugin._get_lcd().getLCDText(1), line2)
+        self.assertEqual(self.getLCD(plugin).getLCDText(0), line1)
+        self.assertEqual(self.getLCD(plugin).getLCDText(1), line2)
 
     def test_basic_write(self):
         plugin = self.getPlugin()
 
         plugin._write_to_lcd("Hello World!", 0, False, 0)
 
-        result = plugin._get_lcd_text(0)
+        result = self.getLCDBuffer(plugin, 0)
         self.assertEqual(result, self.getLCDText("Hello World!"))
         
-        result = plugin._get_lcd().getLCDText(0)
+        result = self.getLCD(plugin).getLCDText(0)
         self.assertEqual(result, self.getLCDText("Hello World!"))
 
     def test_events(self):
@@ -63,13 +70,13 @@ class TestPlugin(unittest.TestCase):
         # print started 
         plugin.on_event("Connected", None)
 
-        result = plugin._get_lcd().getLCDText(0)
+        result = self.getLCD(plugin).getLCDText(0)
         self.assertEqual(result, self.getLCDText("Connected"))
 
         # disconected
         plugin.on_event("Disconnected", None)
 
-        result = plugin._get_lcd().getLCDText(0)
+        result = self.getLCD(plugin).getLCDText(0)
         self.assertEqual(result, self.getLCDText(""))
 
         # error
@@ -91,9 +98,9 @@ class TestPlugin(unittest.TestCase):
 
         plugin.on_print_progress(None, None, 37)
 
-        result = plugin._get_lcd().getLCDText(0)
+        result = self.getLCD(plugin).getLCDText(0)
         self.assertEqual(result, "foo_bar_20180624")
-        result = plugin._get_lcd().getLCDText(1)
+        result = self.getLCD(plugin).getLCDText(1)
         self.assertEqual(result, self.getLCDText("[\x05\x05\x05\x03      ] 37%"))
     
     def test_pseudo_print(self):
@@ -130,12 +137,17 @@ class TestPlugin(unittest.TestCase):
 
         plugin.on_event("Connected", None)
 
-        result = plugin._get_lcd().getBacklight()
+        result = self.getLCD(plugin).getBacklight()
         self.assertEqual(result, True)
 
         plugin.on_event("Disconnected", None)
 
-        result = plugin._get_lcd().getBacklight()
+        result = self.getLCD(plugin).getBacklight()
+        self.assertEqual(result, False)
+
+        plugin.on_event("asld;kfj", None)
+
+        result = self.getLCD(plugin).getBacklight()
         self.assertEqual(result, False)
         
 

@@ -9,42 +9,48 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                     octoprint.plugin.ShutdownPlugin,
                     octoprint.plugin.EventHandlerPlugin):
 
-    __lcd_width = 16
+    
+    def on_startup(self, host, port):
+        # constants
 
-    __2perc = 1
-    __4perc = 2
-    __6perc = 3
-    __8perc = 4
-    __10perc = 5
+        self.__lcd_width = 16
 
-    __2percstr = '\x01'
-    __4percstr = '\x02'
-    __6percstr = '\x03'
-    __8percstr = '\x04'
-    __10percstr = '\x05'
+        self.__2perc = 1
+        self.__4perc = 2
+        self.__6perc = 3
+        self.__8perc = 4
+        self.__10perc = 5
 
-    __lcd_state = False
+        self.__2percstr = '\x01'
+        self.__4percstr = '\x02'
+        self.__6percstr = '\x03'
+        self.__8percstr = '\x04'
+        self.__10percstr = '\x05'
 
-    __current_lcd_text = None
+        self.__lcd_state = False
 
-    __lcd = None
+        self.__current_lcd_text = None
 
-    __filename = ""
+        self.__lcd = LCD.Adafruit_CharLCDPlate()
+
+        self.__filename = ""
 
     def on_after_startup(self):
         """
         Runs when plugin is started. Turn on and clear the LCD.
         """
-        self._logger.info("PiPrint starting")
-        lcd = self._get_lcd()
+        # self._logger.setLevel(10) #change to debug mode
+        self._logger.debug("Starting Verbose Debugger")
+        self._logger.info("Adafruit 16x2 LCD starting")
 
+        
         # create the loading characters
-        lcd.create_char(self.__2perc, [16, 16, 16, 16, 16, 16, 16, 0])
-        lcd.create_char(self.__4perc, [24, 24, 24, 24, 24, 24, 24, 0])
-        lcd.create_char(self.__6perc, [28, 28, 28, 28, 28, 28, 28, 0])
-        lcd.create_char(self.__8perc, [30, 30, 30, 30, 30, 30, 30, 0])
-        lcd.create_char(self.__10perc,[31, 31, 31, 31, 31, 31, 31, 0])
-
+        self.__lcd.create_char(self.__2perc, [0, 0, 0b10000, 0, 0b10000, 0, 0, 0])
+        self.__lcd.create_char(self.__4perc, [0, 0, 0b11000, 0, 0b11000, 0, 0, 0])
+        self.__lcd.create_char(self.__6perc, [0, 0, 0b11100, 0, 0b11100, 0, 0, 0])
+        self.__lcd.create_char(self.__8perc, [0, 0, 0b11110, 0, 0b11110, 0, 0, 0])
+        self.__lcd.create_char(self.__10perc,[0, 0, 0b11111, 0, 0b11111, 0, 0, 0])
+        
         self._clear()
 
         self._turn_lcd_off(True)
@@ -57,7 +63,9 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         :param payload: Dictionary of data passed with the event
         """
 
-        lcd = self._get_lcd()
+        self._logger.debug("Event: {}".format(event))
+
+        
 
         clear_screen_events = ['Connected', 'Disconnected']
         if any(e in event for e in clear_screen_events):
@@ -66,13 +74,11 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         # events to print the name of
         useful_events = ['Connected', 'PrintPaused', 'PrintResumed', 'PrintStarted']
         if any(e in event for e in useful_events):
+            self._turn_lcd_on()
             self._write_to_lcd(event, 0)
 
 
         #custom implementation for events
-
-        if 'Disconnected' not in event:
-            self._turn_lcd_on()
 
         if 'Disconnected' in event:
             self._turn_lcd_off(True)
@@ -125,8 +131,8 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         
         Prefer this method to clearing the lcd directly.
         """
-        lcd = self._get_lcd()
-        lcd.clear()
+
+        self.__lcd.clear()
         self.__current_lcd_text = [" " * self.__lcd_width, " " * self.__lcd_width]
 
     def _format_progress_bar(self, progress):
@@ -153,10 +159,11 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         Turn the LCD off by setting the backlight to zero.
         :param force: ignore the __lcd_state value
         """
-        lcd = self._get_lcd()
+
+        self._logger.debug("turning lcd on; forced: {}".format(force))
 
         if self.__lcd_state or force:
-            lcd.set_backlight(0)
+            self.__lcd.set_backlight(0)
             self.__lcd_state = False
 
     def _turn_lcd_on(self, force=False):
@@ -164,10 +171,11 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         Turn the LCD on by setting the backlight to one.
         :param force: ignore the __lcd_state value
         """
-        lcd = self._get_lcd()
+
+        self._logger.debug("turning lcd off; forced: {}".format(force))
 
         if not self.__lcd_state or force:
-            lcd.set_backlight(1.0)
+            self.__lcd.set_backlight(1.0)
             self.__lcd_state = True
 
     def _write_to_lcd(self, message, row, clear=True, column=0):
@@ -180,7 +188,6 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         """
         self._logger.info("Writing to LCD: " + message)
 
-        lcd = self._get_lcd()
         self._turn_lcd_on()
 
         if self.__current_lcd_text == None:
@@ -207,9 +214,9 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
             # If the next character to write is not next to the last written 
             # character, go to the new location
             if last != i:
-                lcd.set_cursor(column + i, row)
+                self.__lcd.set_cursor(column + i, row)
             # Write the next character
-            lcd.write8(ord(message[i]), True)
+            self.__lcd.write8(ord(message[i]), True)
             m[column + i] = message[i]
             self._logger.debug("  " + message[i])
 
@@ -233,20 +240,6 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         """
         return [i for i in xrange(min(len(str1), len(str2))) if str1[i] != str2[i]]
     
-    def _get_lcd(self):
-        # type: () -> LCD
-        """
-        Get the LCD instance
-
-        For use with the Unit Tester
-
-        """
-        if self.__lcd == None:
-            self.__lcd = LCD.Adafruit_CharLCDPlate()
-        return self.__lcd
-    
-    def _get_lcd_text(self, row):
-        return self.__current_lcd_text[row]
 
 __plugin_name__ = "Adafruit 16x2 LCD"
 
