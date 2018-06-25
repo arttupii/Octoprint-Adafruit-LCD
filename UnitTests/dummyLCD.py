@@ -130,6 +130,8 @@ class Adafruit_CharLCD(object):
         
         self.__cursor = [0, 0]
 
+        self.__BACKLIGHT = False
+
         # Save column and line state.
         self._cols = cols
         self._lines = lines
@@ -150,12 +152,12 @@ class Adafruit_CharLCD(object):
         # for pin in (rs, en, d4, d5, d6, d7):
         #     gpio.setup(pin, GPIO.OUT)
         # Setup backlight.
-        if backlight is not None:
-            if enable_pwm:
-                pwm.start(backlight, self._pwm_duty_cycle(initial_backlight))
-            else:
-                gpio.setup(backlight, GPIO.OUT)
-                gpio.output(backlight, self._blpol if initial_backlight else not self._blpol)
+        # if backlight is not None:
+        #     if enable_pwm:
+        #         pwm.start(backlight, self._pwm_duty_cycle(initial_backlight))
+        #     else:
+        #         gpio.setup(backlight, GPIO.OUT)
+        #         gpio.output(backlight, self._blpol if initial_backlight else not self._blpol)
         # Initialize the display.
         self.write8(0x33)
         self.write8(0x32)
@@ -267,6 +269,7 @@ class Adafruit_CharLCD(object):
         turn it off.  If PWM is enabled, backlight can be any value from 0.0 to
         1.0, with 1.0 being full intensity backlight.
         """
+        self.__BACKLIGHT = backlight
         # if self._backlight is not None:
         #     if self._pwm_enabled:
         #          self._pwm.set_duty_cycle(self._backlight, self._pwm_duty_cycle(backlight))
@@ -342,10 +345,12 @@ class Adafruit_CharLCD(object):
         return intensity
 
     def getLCDText(self, row):
-        """
-        :rtype: str
-        """
+        #type (int) -> str
         return self.__lcd_array[row]
+    
+    def getBacklight(self):
+        #type () -> bool
+        return self.__BACKLIGHT
 
 
 class Adafruit_RGBCharLCD(Adafruit_CharLCD):
@@ -387,6 +392,9 @@ class Adafruit_RGBCharLCD(Adafruit_CharLCD):
                                                   invert_polarity=invert_polarity,
                                                   gpio=None, 
                                                   pwm=None)
+
+        self.__BACKLIGHT = False
+
         self._red = red
         self._green = green
         self._blue = blue
@@ -445,7 +453,12 @@ class Adafruit_RGBCharLCD(Adafruit_CharLCD):
         1.0, with 1.0 being full intensity backlight.  On an RGB display this
         function will set the backlight to all white.
         """
-        self.set_color(backlight, backlight, backlight)
+        self.__BACKLIGHT = backlight
+        # self.set_color(backlight, backlight, backlight)
+    
+    def getBacklight(self):
+        #type () -> bool
+        return self.__BACKLIGHT
 
 
 

@@ -4,7 +4,7 @@ import Adafruit_CharLCD as LCD
 import octoprint.plugin
 import math
 
-class PiprintPlugin(octoprint.plugin.StartupPlugin,
+class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                     octoprint.plugin.ProgressPlugin,
                     octoprint.plugin.ShutdownPlugin,
                     octoprint.plugin.EventHandlerPlugin):
@@ -75,7 +75,7 @@ class PiprintPlugin(octoprint.plugin.StartupPlugin,
             self._turn_lcd_on()
 
         if 'Disconnected' in event:
-            self._turn_lcd_off()
+            self._turn_lcd_off(True)
         
         if 'Error' in event:
             self._write_to_lcd(event, 0)
@@ -252,4 +252,4 @@ __plugin_name__ = "Adafruit 16x2 LCD"
 
 def __plugin_load__():
     global __plugin_implementation__
-    __plugin_implementation__ = PiprintPlugin()
+    __plugin_implementation__ = Adafruit_16x2_LCD()

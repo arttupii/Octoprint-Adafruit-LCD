@@ -1,5 +1,5 @@
 import unittest
-import UnitTestAdafruit_CharLCD as LCD
+import dummyLCD as LCD
 
 class TestWrite(unittest.TestCase):
 
@@ -51,4 +51,18 @@ class TestWrite(unittest.TestCase):
 
         result = lcd.getLCDText(0)
         self.assertEqual(result, "     dlroW olleH")
+    
+
+    def test_led(self):
+        lcd = self.get_lcd()
+
+        lcd.set_backlight(True)
+
+        result = lcd.getBacklight()
+        self.assertEqual(result, True)
+
+        lcd.set_backlight(False)
+        
+        result = lcd.getBacklight()
+        self.assertEqual(result, False)
 

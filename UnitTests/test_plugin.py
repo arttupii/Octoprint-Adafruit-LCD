@@ -5,9 +5,11 @@ import logging
 import math
 
 #setup the imports for the unit test
-sys.modules['Adafruit_CharLCD'] = __import__('UnitTestAdafruit_CharLCD')
+sys.modules['Adafruit_CharLCD'] = __import__('dummyLCD')
 sys.path.append('octoprint_adafruitlcd')
 import __init__ as adafruitLCD
+
+import dummyLCD as LCD
 
 class printer():
 
@@ -23,7 +25,7 @@ class TestPlugin(unittest.TestCase):
         return text + " " * (16 - len(text))
 
     def getPlugin(self):
-        plugin = adafruitLCD.PiprintPlugin()
+        plugin = adafruitLCD.Adafruit_16x2_LCD()
 
         logging.basicConfig()
         plugin._logger = logging.getLogger("logging")
@@ -122,6 +124,21 @@ class TestPlugin(unittest.TestCase):
     
         plugin.on_event("PrintDone", {"time":123456})
         self.assertTwoLines(plugin, self.getLCDText("Print Done"), self.getLCDText("Time: 34 h,17 m"))
+
+    def test_led(self):
+        plugin = self.getPlugin()
+
+        plugin.on_event("Connected", None)
+
+        result = plugin._get_lcd().getBacklight()
+        self.assertEqual(result, True)
+
+        plugin.on_event("Disconnected", None)
+
+        result = plugin._get_lcd().getBacklight()
+        self.assertEqual(result, False)
+        
+
 
 
 
