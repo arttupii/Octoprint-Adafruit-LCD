@@ -10,110 +10,134 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                     octoprint.plugin.EventHandlerPlugin):
 
     
-    def on_startup(self, host, port):
+    def __init__(self):
         # constants
 
         self.__lcd_width = 16
 
-        self.__2perc = 1
-        self.__4perc = 2
-        self.__6perc = 3
-        self.__8perc = 4
-        self.__10perc = 5
-
-        self.__2percstr = '\x01'
-        self.__4percstr = '\x02'
-        self.__6percstr = '\x03'
-        self.__8percstr = '\x04'
-        self.__10percstr = '\x05'
+        self.__blankstr = unichr(6)
+        self.__2percstr = unichr(1)
+        self.__4percstr = unichr(2)
+        self.__6percstr = unichr(3)
+        self.__8percstr = unichr(4)
+        self.__10percstr = unichr(5)
+        self.__leftEnd = unichr(0)
+        self.__rightEnd = unichr(7)
 
         self.__lcd_state = False
+        self.__current_lcd_text = [" " * self.__lcd_width, " " * self.__lcd_width]
 
-        self.__current_lcd_text = None
 
         self.__lcd = LCD.Adafruit_CharLCDPlate()
 
         self.__filename = ""
+
+        self.__lcd.clear()
+        self.__lcd.home()
+        self.__lcd.message("I'm waking up\njust wait a sec")
 
     def on_after_startup(self):
         """
         Runs when plugin is started. Turn on and clear the LCD.
         """
         # self._logger.setLevel(10) #change to debug mode
+        self._logger.setLevel(20) # change to info mode
+        # self._logger.setLevel(40) # change to error mode
+
         self._logger.debug("Starting Verbose Debugger")
         self._logger.info("Adafruit 16x2 LCD starting")
 
+        self._clear()
+        self._write_to_lcd("Hello! What will", 0, False)
+        self._write_to_lcd("we print today?", 1, False)
         
         # create the loading characters
-        self.__lcd.create_char(self.__2perc, [0, 0, 0b10000, 0, 0b10000, 0, 0, 0])
-        self.__lcd.create_char(self.__4perc, [0, 0, 0b11000, 0, 0b11000, 0, 0, 0])
-        self.__lcd.create_char(self.__6perc, [0, 0, 0b11100, 0, 0b11100, 0, 0, 0])
-        self.__lcd.create_char(self.__8perc, [0, 0, 0b11110, 0, 0b11110, 0, 0, 0])
-        self.__lcd.create_char(self.__10perc,[0, 0, 0b11111, 0, 0b11111, 0, 0, 0])
-        
-        self._clear()
-
-        self._turn_lcd_off(True)
+        self.__lcd.create_char(ord(self.__2percstr), [0b11111, 0, 0b10000, 0b10000, 0b10000, 0, 0b11111, 0])
+        self.__lcd.create_char(ord(self.__4percstr), [0b11111, 0, 0b11000, 0b11000, 0b11000, 0, 0b11111, 0])
+        self.__lcd.create_char(ord(self.__6percstr), [0b11111, 0, 0b11100, 0b11100, 0b11100, 0, 0b11111, 0])
+        self.__lcd.create_char(ord(self.__8percstr), [0b11111, 0, 0b11110, 0b11110, 0b11110, 0, 0b11111, 0])
+        self.__lcd.create_char(ord(self.__10percstr),[0b11111, 0, 0b11111, 0b11111, 0b11111, 0, 0b11111, 0])
+        self.__lcd.create_char(ord(self.__blankstr), [0b11111, 0, 0,       0,       0,       0, 0b11111, 0])
+        self.__lcd.create_char(ord(self.__leftEnd),  [1,       1, 1,       1,       1,       1, 1,       0])
+        self.__lcd.create_char(ord(self.__rightEnd), [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0])
         
 
     def on_event(self, event, payload):
+        # type (str, dict)
         """
         Called when an event occurs. Displays print updates; turns off LCD when print stops for any reason.
         :param event: Event which just happened.
         :param payload: Dictionary of data passed with the event
         """
 
-        self._logger.debug("Event: {}".format(event))
+        # Only let useful events continue
+        # 'onnect' encapsulates any Connection event
+        useful_events = ['Print', 'onnect', 'Error', 'Slicing', 'MetadataAnalysisFinished', 'Shutdown']
+        black_list = ['ConnectivityChanged', 'PrinterStateChanged']
+        if any(e in event for e in useful_events) and not any(e in event for e in black_list):
+            self._logger.info("Event: {}".format(event))
+        else:
+            return
 
-        
-
-        clear_screen_events = ['Connected', 'Disconnected']
+        # clear the screen before printing anything for any event that should be cleared beforehand
+        clear_screen_events = ['onnect', 'Slicing', 'Error', 'MetadataAnalysisFinished', 'PrintDone', 'PrintStarted']
         if any(e in event for e in clear_screen_events):
             self._clear()
 
-        # events to print the name of
-        useful_events = ['Connected', 'PrintPaused', 'PrintResumed', 'PrintStarted']
-        if any(e in event for e in useful_events):
-            self._turn_lcd_on()
+        # simple events that should only need the event printed
+        simple_events = ['onnect', 'Print', 'Error', 'Slicing']
+        if any(e in event for e in simple_events):
             self._write_to_lcd(event, 0)
 
+        # special implementation for events
 
-        #custom implementation for events
-
-        if 'Disconnected' in event:
+        # turn on the lcd if any event has been triggered other than Disconnected
+        if event == 'Disconnected' or event == 'Shutdown':
+            self._clear()
             self._turn_lcd_off(True)
+        else:
+            self._turn_lcd_on(True)
         
-        if 'Error' in event:
-            self._write_to_lcd(event, 0)
-            self._write_to_lcd(payload["error"], 1)
+        if event == 'Error':
+            self._write_to_lcd(payload["error"], 1, False)
         
-        if 'PrintDone' in event:
-            self._write_to_lcd("Print Done", 0)
+        elif event == 'PrintDone':
             seconds = payload["time"]
             hours = math.floor(seconds / 3600)
             minutes = math.floor(seconds / 60) % 60
-            self._write_to_lcd("Time: %d h,%d m" % (hours, minutes), 1)
+            self._write_to_lcd("Time: %d h,%d m" % (hours, minutes), 1, False)
         
-        if 'PrintStarted' in event:
+        elif event == 'PrintStarted':
             name = payload["name"]
-            self._write_to_lcd(payload["name"], 1)
+            self._write_to_lcd(payload["name"], 1, False)
             self.__filename = payload["name"]
 
+        elif event == 'MetadataAnalysisFinished':
+            self._write_to_lcd("Analysis Finish", 0, False)
+            self._write_to_lcd(payload["name"], 1, False)
+        
+        elif "Slicing" in event and "Profile" not in event:
+            self._write_to_lcd(payload["stl"], 1, False)
+            if event == 'SlicingDone':
+                min = int(math.floor(payload["time"] / 60))
+                sec = int(math.floor(payload["time"]) % 60)
+                text = "SlicingDone {}:{}".format(min, sec)
+                if len(text) > 16:
+                    text = text.replace(" ", "")
+                self._write_to_lcd(text, 0, False)
         
 
     def on_print_progress(self, storage, path, progress):
+        # type (str, str, int)
         """
         Called on 1% print progress updates. Displays the new progress on the LCD.
         :param storage: File being printed
         :param path: Path of file being printed
         :param progress: Progress of print
         """
-        if not self._printer.is_printing():
+        if not self._printer.is_printing() or progress == 0:
             return
         
-        if progress == 0:
-            return
-
         self._write_to_lcd(self.__filename, 0)
         self._write_to_lcd(self._format_progress_bar(progress), 1)
 
@@ -136,6 +160,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         self.__current_lcd_text = [" " * self.__lcd_width, " " * self.__lcd_width]
 
     def _format_progress_bar(self, progress):
+        # type (int)
         """
         Create a formatted string 'progress bar' based on the given value
         :param progress: Progress (0-100) of the print
@@ -150,11 +175,16 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
             5: self.__10percstr
         }
 
-        filler = self.__10percstr * int(round(progress / 10)) + switcher.get((progress % 10) / 2, " ")
-        spaces = " " * (10 - len(filler))
-        return "[{}{}] {}%".format(filler, spaces, str(progress))
+        bar = self.__10percstr * int(round(progress / 10))
+        bar += switcher.get((progress % 10) / 2, self.__blankstr)
+        bar += self.__blankstr * (10 - len(bar))
+        
+        bar = self.__leftEnd + bar
+        bar += self.__rightEnd
+        return "{} {}%".format(bar, str(progress))
 
     def _turn_lcd_off(self, force=False):
+        # type (bool)
         """
         Turn the LCD off by setting the backlight to zero.
         :param force: ignore the __lcd_state value
@@ -167,6 +197,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
             self.__lcd_state = False
 
     def _turn_lcd_on(self, force=False):
+        # type (bool)
         """
         Turn the LCD on by setting the backlight to one.
         :param force: ignore the __lcd_state value
@@ -179,6 +210,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
             self.__lcd_state = True
 
     def _write_to_lcd(self, message, row, clear=True, column=0):
+        # type (str, int, bool, int)
         """
         Write a string message to the LCD. Displays the text on the LCD display.
         :param message: Message to display on the LCD
@@ -186,18 +218,19 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         :param clear: clear the line
         :param column: position to start writing
         """
-        self._logger.info("Writing to LCD: " + message)
+        self._logger.info("Writing to LCD: {}".format(self._special_chars_to_num(message)))
 
         self._turn_lcd_on()
-
-        if self.__current_lcd_text == None:
-            self.__current_lcd_text = [" " * self.__lcd_width, " " * self.__lcd_width]
 
         # make sure the message fits in the display
         message = message[:self.__lcd_width - column]
         # if the message should clear the line, fill the rest of the line with spaces
         if clear:
-            message = (" " * column) + message + (" " * (self.__lcd_width - len(message) - column))
+            temp = " " * self.__lcd_width
+            # insert the message into a lcd_width blank string
+            message = temp[:column] + message + temp[column + len(message):]
+            # clear the column number since we will now write to the entire line
+            column = 0
 
 
         # find the positions of the characters that are different
@@ -218,7 +251,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
             # Write the next character
             self.__lcd.write8(ord(message[i]), True)
             m[column + i] = message[i]
-            self._logger.debug("  " + message[i])
+            self._logger.debug("  {}".format(self._special_chars_to_num(str(message[i]))))
 
             # set last to the selected index
             last = i + 1
@@ -226,12 +259,25 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         # update the lcd buffer with the newly written text
         self.__current_lcd_text[row] = "".join(m)
 
-        self._logger.debug("LCD now displays: ")
-        self._logger.debug("  '{}'".format(self.__current_lcd_text[0]))
-        self._logger.debug("  '{}'".format(self.__current_lcd_text[1]))
 
+        self._logger.debug("LCD now displays: ")
+        self._logger.debug("  '{}'".format(self._special_chars_to_num(self.__current_lcd_text[0])))
+        self._logger.debug("  '{}'".format(self._special_chars_to_num(self.__current_lcd_text[1])))
+
+    def _special_chars_to_num(self, string):
+        #type (str) -> str
+        """
+        Convert special characters that the LCD uses to numbers in the format '#0' or '#5'
+
+        The range is 0 to 7 since the LCD can only store 8 special characters
+        """
+        for ch in range(0, 7):
+            if unichr(ch) in string:
+                string = string.replace(unichr(ch), "#{}".format(ch))
+        return string
     
     def _get_diff(self, str1, str2):
+        #type (str, str) -> list
         """
         Get the indexes for each difference in the two strings.  The two strings 
         don't have to be the same size
