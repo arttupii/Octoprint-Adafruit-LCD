@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import Adafruit_CharLCD as LCD
 import octoprint.plugin
 import math
+import re
 
 class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                     octoprint.plugin.ProgressPlugin,
@@ -93,17 +94,19 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         
         elif event == 'PrintStarted':
             name = payload["name"]
-            self._write_to_lcd(payload["name"], 1, False)
-            self.__filename = payload["name"]
+            # Clean up the file name to better fit the screen
+            name = self._clean_file_name(name)
+            self._write_to_lcd(name, 1, False)
+            self.__filename = name
             # Create custom progress bar every time a print starts
             self._create_custom_progress_bar()
 
         elif event == 'MetadataAnalysisFinished':
             self._write_to_lcd("Analysis Finish", 0, False)
-            self._write_to_lcd(payload["name"], 1, False)
+            self._write_to_lcd(self._clean_file_name(payload["name"]), 1, False)
         
         elif "Slicing" in event and "Profile" not in event:
-            self._write_to_lcd(payload["stl"], 1, False)
+            self._write_to_lcd(self._clean_file_name(payload["stl"]), 1, False)
             if event == 'SlicingDone':
                 min = int(math.floor(payload["time"] / 60))
                 sec = int(math.floor(payload["time"]) % 60)
@@ -277,6 +280,64 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         """
         return [i for i in xrange(min(len(str1), len(str2))) if str1[i] != str2[i]]
     
+    def _clean_file_name(self, name):
+        #type (str) -> str
+        """
+        Simplify the file names to fit in the lcd screen
+        :param name: name to minify
+        """
+
+        if len(name) <= self.__lcd_width:
+            return name
+
+
+        # Remove extension
+        if name.find('.') != -1:
+            name = name.split('.', 1)[0]
+        
+        if len(name) <= self.__lcd_width:
+            return name
+        
+        # Capitalize Version number
+        words = re.findall(r'[v][\d]*', name)
+        for v in words:
+            name = name.replace(v, v.capitalize())
+        
+        # Remove dashes, underscores, and spaces.  Then capitalize each word
+        words = re.findall(r'[a-zA-Z\d][^A-Z-_ ]*', name)
+        name = ''.join([s.capitalize() for s in words])
+
+
+        if len(name) <= self.__lcd_width:
+            return name
+
+        # Remove big numbers
+
+        # find all the numbers in the string
+        numbers = re.findall(r'\d+', name)
+
+        # remove numbers with more than 3 digits
+        for n in numbers:
+            if len(n) > 2 and len(name) > self.__lcd_width:
+                name = name.replace(n, "")
+        
+
+        if len(name) <= self.__lcd_width:
+            return name
+
+        # remove extra words from the end
+
+        # split the string into capitalized words
+        words = re.findall(r'[\dA-Z][^A-Z]*', name)
+
+        # remove words from the string until it is smaller or equal to the lcd width
+        for w in reversed(words):
+            if len(name) > self.__lcd_width:
+                # Make sure that version numbers are not messed with
+                if len(re.findall(r'[V][\d]*', w)) == 0:
+                    name = name.replace(w, "") 
+
+        return name
 
 __plugin_name__ = "Adafruit 16x2 LCD"
 

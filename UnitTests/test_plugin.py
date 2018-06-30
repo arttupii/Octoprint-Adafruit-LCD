@@ -88,12 +88,12 @@ class TestPlugin(unittest.TestCase):
         self.assertTwoLines(plugin, self.getLCDText("PrintDone"), self.getLCDText("Time: 125 h,20 m"))
 
         #print started
-        plugin.on_event("PrintStarted", {"name":"foo_bar_20180624_v2.gcode"})
-        self.assertTwoLines(plugin, self.getLCDText("PrintStarted"), "foo_bar_20180624")
+        plugin.on_event("PrintStarted", {"name":"foo_bart_2018-06-24_v2.gcode"})
+        self.assertTwoLines(plugin, self.getLCDText("PrintStarted"), self.getLCDText("FooBartV2"))
 
         #analysis
         plugin.on_event("MetadataAnalysisFinished", {"name":"20180625_foo_bar_v3.gco"})
-        self.assertTwoLines(plugin, self.getLCDText("Analysis Finish"), "20180625_foo_bar")
+        self.assertTwoLines(plugin, self.getLCDText("Analysis Finish"), "20180625FooBarV3")
 
         #paused mid print
         plugin.on_print_progress(None, None, 42)
@@ -102,19 +102,19 @@ class TestPlugin(unittest.TestCase):
 
         #slicing done
         plugin.on_event("SlicingDone", {"stl":"foo_bar_v4_20180626.stl", "time":123.354})
-        self.assertTwoLines(plugin, self.getLCDText("SlicingDone 2:3"), "foo_bar_v4_20180")
+        self.assertTwoLines(plugin, self.getLCDText("SlicingDone 2:3"), "FooBarV420180626")
 
 
 
     def test_progress(self):
         plugin = self.getPlugin()
 
-        plugin.on_event("PrintStarted", {"name":"foo_bar_20180624_v2.gcode"})
+        plugin.on_event("PrintStarted", {"name":"foo_bar_2018-06-24_v2.gcode"})
 
         plugin.on_print_progress(None, None, 37)
 
         result = self.getLCD(plugin).getLCDText(0)
-        self.assertEqual(result, "foo_bar_20180624")
+        self.assertEqual(result, "FooBar20180624V2")
         result = self.getLCD(plugin).getLCDText(1)
         self.assertEqual(result, self.getLCDText("[===\x03      ] 37%"))
     
@@ -164,6 +164,27 @@ class TestPlugin(unittest.TestCase):
 
         result = self.getLCD(plugin).getBacklight()
         self.assertEqual(result, False)
+    
+    def test_string_minify(self):
+        plugin = self.getPlugin()
+
+        result = plugin._clean_file_name("hello.gcode")
+        self.assertEqual(result, "hello.gcode")
+
+        result = plugin._clean_file_name("hello_what_are_do.gcode")
+        self.assertEqual(result, "HelloWhatAreDo")
+
+        result = plugin._clean_file_name("06302018-print123.gcode")
+        self.assertEqual(result, "06302018Print123")
+        
+        result = plugin._clean_file_name("06302018-print_two123.gcode")
+        self.assertEqual(result, "PrintTwo123")
+
+        result = plugin._clean_file_name("asdf_FooBar_cheeseGrinder.gcode")
+        self.assertEqual(result, "AsdfFooBarCheese")
+
+        result = plugin._clean_file_name("FooBar_cheeseGrinderv3.gcode")
+        self.assertEqual(result, "FooBarCheeseV3")
         
 
 
