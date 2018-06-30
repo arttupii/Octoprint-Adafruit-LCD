@@ -98,7 +98,7 @@ class TestPlugin(unittest.TestCase):
         #paused mid print
         plugin.on_print_progress(None, None, 42)
         plugin.on_event("PrintPaused", None)
-        self.assertTwoLines(plugin, self.getLCDText("PrintPaused"), "\x00\x05\x05\x05\x05\x01\x06\x06\x06\x06\x06\x07 42%")
+        self.assertTwoLines(plugin, self.getLCDText("PrintPaused"), "[====\x01     ] 42%")
 
         #slicing done
         plugin.on_event("SlicingDone", {"stl":"foo_bar_v4_20180626.stl", "time":123.354})
@@ -116,7 +116,7 @@ class TestPlugin(unittest.TestCase):
         result = self.getLCD(plugin).getLCDText(0)
         self.assertEqual(result, "foo_bar_20180624")
         result = self.getLCD(plugin).getLCDText(1)
-        self.assertEqual(result, self.getLCDText("\x00\x05\x05\x05\x03\x06\x06\x06\x06\x06\x06\x07 37%"))
+        self.assertEqual(result, self.getLCDText("[===\x03      ] 37%"))
     
     def test_pseudo_print(self):
         plugin = self.getPlugin()
@@ -138,11 +138,11 @@ class TestPlugin(unittest.TestCase):
                 2: "\x02",
                 3: "\x03",
                 4: "\x04",
-                5: "\x05"
+                5: "="
             }
-            filler = switcher[5] * int(round(i / 10)) + switcher.get((i % 10) / 2, "\x06")
-            spaces = "\x06" * (10 - len(filler))
-            self.assertTwoLines(plugin, self.getLCDText("foobar"), self.getLCDText("\x00{}{}\x07 {}%".format(filler, spaces, str(i))))
+            filler = switcher[5] * int(round(i / 10)) + switcher.get((i % 10) / 2, " ")
+            spaces = " " * (10 - len(filler))
+            self.assertTwoLines(plugin, self.getLCDText("foobar"), self.getLCDText("[{}{}] {}%".format(filler, spaces, str(i))))
     
         plugin.on_event("PrintDone", {"time":123456})
         self.assertTwoLines(plugin, self.getLCDText("PrintDone"), self.getLCDText("Time: 34 h,17 m"))

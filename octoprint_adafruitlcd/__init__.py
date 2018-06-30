@@ -8,21 +8,17 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                     octoprint.plugin.ProgressPlugin,
                     octoprint.plugin.ShutdownPlugin,
                     octoprint.plugin.EventHandlerPlugin):
-
     
     def __init__(self):
         # constants
 
         self.__lcd_width = 16
 
-        self.__blankstr = unichr(6)
-        self.__2percstr = unichr(1)
-        self.__4percstr = unichr(2)
-        self.__6percstr = unichr(3)
-        self.__8percstr = unichr(4)
-        self.__10percstr = unichr(5)
-        self.__leftEnd = unichr(0)
-        self.__rightEnd = unichr(7)
+        self.__2perc = unichr(1)
+        self.__4perc = unichr(2)
+        self.__6perc = unichr(3)
+        self.__8perc = unichr(4)
+        self.__10perc = '='
 
         self.__lcd_state = False
         self.__current_lcd_text = [" " * self.__lcd_width, " " * self.__lcd_width]
@@ -40,9 +36,6 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         """
         Runs when plugin is started. Turn on and clear the LCD.
         """
-        # self._logger.setLevel(10) #change to debug mode
-        self._logger.setLevel(20) # change to info mode
-        # self._logger.setLevel(40) # change to error mode
 
         self._logger.debug("Starting Verbose Debugger")
         self._logger.info("Adafruit 16x2 LCD starting")
@@ -51,15 +44,6 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         self._write_to_lcd("Hello! What will", 0, False)
         self._write_to_lcd("we print today?", 1, False)
         
-        # create the loading characters
-        self.__lcd.create_char(ord(self.__2percstr), [0b11111, 0, 0b10000, 0b10000, 0b10000, 0, 0b11111, 0])
-        self.__lcd.create_char(ord(self.__4percstr), [0b11111, 0, 0b11000, 0b11000, 0b11000, 0, 0b11111, 0])
-        self.__lcd.create_char(ord(self.__6percstr), [0b11111, 0, 0b11100, 0b11100, 0b11100, 0, 0b11111, 0])
-        self.__lcd.create_char(ord(self.__8percstr), [0b11111, 0, 0b11110, 0b11110, 0b11110, 0, 0b11111, 0])
-        self.__lcd.create_char(ord(self.__10percstr),[0b11111, 0, 0b11111, 0b11111, 0b11111, 0, 0b11111, 0])
-        self.__lcd.create_char(ord(self.__blankstr), [0b11111, 0, 0,       0,       0,       0, 0b11111, 0])
-        self.__lcd.create_char(ord(self.__leftEnd),  [1,       1, 1,       1,       1,       1, 1,       0])
-        self.__lcd.create_char(ord(self.__rightEnd), [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0])
         
 
     def on_event(self, event, payload):
@@ -103,14 +87,16 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         
         elif event == 'PrintDone':
             seconds = payload["time"]
-            hours = math.floor(seconds / 3600)
-            minutes = math.floor(seconds / 60) % 60
-            self._write_to_lcd("Time: %d h,%d m" % (hours, minutes), 1, False)
+            hours = int(math.floor(seconds / 3600))
+            minutes = int(math.floor(seconds / 60) % 60)
+            self._write_to_lcd("Time: {} h,{} m".format(hours, minutes), 1, False)
         
         elif event == 'PrintStarted':
             name = payload["name"]
             self._write_to_lcd(payload["name"], 1, False)
             self.__filename = payload["name"]
+            # Create custom progress bar every time a print starts
+            self._create_custom_progress_bar()
 
         elif event == 'MetadataAnalysisFinished':
             self._write_to_lcd("Analysis Finish", 0, False)
@@ -145,10 +131,16 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         """
         Called on shutdown of OctoPrint. Turn off the LCD.
         """
-        self._logger.info("PiPrint turning off LCD")
-        self._turn_lcd_off()
+        self._logger.info("Turning off LCD")
+        self._turn_lcd_off(True)
 
     # Class methods (assisting functions)
+    def _create_custom_progress_bar(self):
+        self.__lcd.create_char(ord(self.__2perc), [0, 0, 0b10000, 0, 0b10000, 0, 0, 0])
+        self.__lcd.create_char(ord(self.__4perc), [0, 0, 0b11000, 0, 0b11000, 0, 0, 0])
+        self.__lcd.create_char(ord(self.__6perc), [0, 0, 0b11100, 0, 0b11100, 0, 0, 0])
+        self.__lcd.create_char(ord(self.__8perc), [0, 0, 0b11110, 0, 0b11110, 0, 0, 0])
+
     def _clear(self):
         """
         Clear both the lcd and the internal buffer.
@@ -168,20 +160,19 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         """
 
         switcher = {
-            1: self.__2percstr,
-            2: self.__4percstr,
-            3: self.__6percstr,
-            4: self.__8percstr,
-            5: self.__10percstr
+            0: ' ',
+            1: self.__2perc,
+            2: self.__4perc,
+            3: self.__6perc,
+            4: self.__8perc,
+            5: self.__10perc
         }
 
-        bar = self.__10percstr * int(round(progress / 10))
-        bar += switcher.get((progress % 10) / 2, self.__blankstr)
-        bar += self.__blankstr * (10 - len(bar))
+        bar = self.__10perc * int(round(progress / 10))
+        bar += switcher[(progress % 10) / 2]
+        bar += ' ' * (10 - len(bar))
         
-        bar = self.__leftEnd + bar
-        bar += self.__rightEnd
-        return "{} {}%".format(bar, str(progress))
+        return "[{}] {}%".format(bar, str(progress))
 
     def _turn_lcd_off(self, force=False):
         # type (bool)
@@ -271,7 +262,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
 
         The range is 0 to 7 since the LCD can only store 8 special characters
         """
-        for ch in range(0, 7):
+        for ch in range(0, 8):
             if unichr(ch) in string:
                 string = string.replace(unichr(ch), "#{}".format(ch))
         return string
