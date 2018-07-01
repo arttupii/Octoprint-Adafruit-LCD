@@ -46,8 +46,14 @@ class TestPlugin(unittest.TestCase):
     def getLCD(self, plugin):
         return plugin._Adafruit_16x2_LCD__lcd
     
+    def getData(self, plugin):
+        return plugin._Adafruit_16x2_LCD__data
+    
+    def getUtil(self, plugin):
+        return plugin._Adafruit_16x2_LCD__lcdutil
+    
     def getLCDBuffer(self, plugin, row):
-        return plugin._Adafruit_16x2_LCD__current_lcd_text[row]
+        return self.getUtil(plugin)._LCDUtil__current_lcd_text[row]
 
     def assertTwoLines(self, plugin, line1, line2):
         self.assertEqual(self.getLCD(plugin).getLCDText(0), line1)
@@ -56,7 +62,7 @@ class TestPlugin(unittest.TestCase):
     def test_basic_write(self):
         plugin = self.getPlugin()
 
-        plugin._write_to_lcd("Hello World!", 0, True, 0)
+        self.getUtil(plugin).write_to_lcd("Hello World!", 0, True, 0)
 
         result = self.getLCDBuffer(plugin, 0)
         self.assertEqual(result, self.getLCDText("Hello World!"))
@@ -122,16 +128,24 @@ class TestPlugin(unittest.TestCase):
         plugin = self.getPlugin()
 
         plugin.on_event("Error", {"error":"could not connect"})
+        result = self.getLCD(plugin).getEnabled()
+        self.assertEqual(result, True)
         self.assertTwoLines(plugin, self.getLCDText("Error"), self.getLCDText("could not connect"))
 
         plugin.on_event("Connected", None)
+        result = self.getLCD(plugin).getEnabled()
+        self.assertEqual(result, True)
         self.assertTwoLines(plugin, self.getLCDText("Connected"), self.getLCDText(""))
 
         plugin.on_event("PrintStarted", {"name":"foobar"})
+        result = self.getLCD(plugin).getEnabled()
+        self.assertEqual(result, True)
         self.assertTwoLines(plugin, self.getLCDText("PrintStarted"), self.getLCDText("foobar"))
 
         for i in range(1, 100):
             plugin.on_print_progress(None, None, i)
+            result = self.getLCD(plugin).getEnabled()
+            self.assertEqual(result, True)
 
             switcher = {
                 1: "\x01",
@@ -145,7 +159,13 @@ class TestPlugin(unittest.TestCase):
             self.assertTwoLines(plugin, self.getLCDText("foobar"), self.getLCDText("[{}{}] {}%".format(filler, spaces, str(i))))
     
         plugin.on_event("PrintDone", {"time":123456})
+        result = self.getLCD(plugin).getEnabled()
+        self.assertEqual(result, True)
         self.assertTwoLines(plugin, self.getLCDText("PrintDone"), self.getLCDText("Time: 34 h,17 m"))
+
+        plugin.on_event("Disconnected", None)
+        result = self.getLCD(plugin).getEnabled()
+        self.assertEqual(result, False)
 
     def test_led(self):
         plugin = self.getPlugin()
@@ -154,36 +174,44 @@ class TestPlugin(unittest.TestCase):
 
         result = self.getLCD(plugin).getBacklight()
         self.assertEqual(result, True)
+        result = self.getLCD(plugin).getEnabled()
+        self.assertEqual(result, True)
 
         plugin.on_event("Disconnected", None)
 
         result = self.getLCD(plugin).getBacklight()
+        self.assertEqual(result, False)
+        result = self.getLCD(plugin).getEnabled()
         self.assertEqual(result, False)
 
         plugin.on_event("asld;kfj", None)
 
         result = self.getLCD(plugin).getBacklight()
         self.assertEqual(result, False)
+        result = self.getLCD(plugin).getEnabled()
+        self.assertEqual(result, False)
+        
+
     
     def test_string_minify(self):
         plugin = self.getPlugin()
 
-        result = plugin._clean_file_name("hello.gcode")
+        result = self.getData(plugin).clean_file_name("hello.gcode")
         self.assertEqual(result, "hello.gcode")
 
-        result = plugin._clean_file_name("hello_what_are_do.gcode")
+        result = self.getData(plugin).clean_file_name("hello_what_are_do.gcode")
         self.assertEqual(result, "HelloWhatAreDo")
 
-        result = plugin._clean_file_name("06302018-print123.gcode")
+        result = self.getData(plugin).clean_file_name("06302018-print123.gcode")
         self.assertEqual(result, "06302018Print123")
         
-        result = plugin._clean_file_name("06302018-print_two123.gcode")
+        result = self.getData(plugin).clean_file_name("06302018-print_two123.gcode")
         self.assertEqual(result, "PrintTwo123")
 
-        result = plugin._clean_file_name("asdf_FooBar_cheeseGrinder.gcode")
+        result = self.getData(plugin).clean_file_name("asdf_FooBar_cheeseGrinder.gcode")
         self.assertEqual(result, "AsdfFooBarCheese")
 
-        result = plugin._clean_file_name("FooBar_cheeseGrinderv3.gcode")
+        result = self.getData(plugin).clean_file_name("FooBar_cheeseGrinderv3.gcode")
         self.assertEqual(result, "FooBarCheeseV3")
         
 

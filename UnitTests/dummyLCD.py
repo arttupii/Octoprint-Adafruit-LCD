@@ -130,7 +130,8 @@ class Adafruit_CharLCD(object):
         
         self.__cursor = [0, 0]
 
-        self.__BACKLIGHT = False
+        self.__BACKLIGHT = True
+        self.__ENABLED = True
 
         # Save column and line state.
         self._cols = cols
@@ -196,6 +197,7 @@ class Adafruit_CharLCD(object):
 
     def enable_display(self, enable):
         """Enable or disable the display.  Set enable to True to enable."""
+        self.__ENABLED = enable
         if enable:
             self.displaycontrol |= LCD_DISPLAYON
         else:
@@ -351,6 +353,10 @@ class Adafruit_CharLCD(object):
     def getBacklight(self):
         #type () -> bool
         return self.__BACKLIGHT
+    
+    def getEnabled(self):
+        #type () -> bool
+        return self.__ENABLED
 
 
 class Adafruit_RGBCharLCD(Adafruit_CharLCD):
