@@ -3,7 +3,7 @@ import math
 import re
 import Adafruit_CharLCD as LCD
 
-import lcddata
+from . import lcddata
 
 class LCDUtil:
 

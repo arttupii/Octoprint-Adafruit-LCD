@@ -4,8 +4,9 @@ import Adafruit_CharLCD as LCD
 import octoprint.plugin
 import math
 import re
-import lcdutil
-import lcddata
+
+from . import lcdutil
+from . import lcddata
 
 class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                     octoprint.plugin.ProgressPlugin,
