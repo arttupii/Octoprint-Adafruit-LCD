@@ -34,6 +34,8 @@ plugin_license = "MIT"
 # Any additional requirements besides OctoPrint should be listed here
 plugin_requires = ['smbus2', 'Adafruit_CharLCD']
 
+additional_setup_parameters = {"dependency_links": ["https://github.com/adafruit/Adafruit_Python_CharLCD/archive/master.zip#egg=Adafruit_CharLCD"]}
+
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point
 ### --------------------------------------------------------------------------------------------------------------------
@@ -56,7 +58,6 @@ plugin_ignored_packages = []
 # Example:
 #     plugin_requires = ["someDependency==dev"]
 #     additional_setup_parameters = {"dependency_links": ["https://github.com/someUser/someRepo/archive/master.zip#egg=someDependency-dev"]}
-additional_setup_parameters = {"dependency_links": ["https://github.com/adafruit/Adafruit_Python_CharLCD/archive/master.zip#egg=Adafruit_CharLCD"]}
 
 ########################################################################################################################
 

@@ -7,6 +7,7 @@ import re
 
 from . import lcdutil
 from . import lcddata
+from . import synchevent
 
 class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                     octoprint.plugin.ProgressPlugin,
@@ -24,6 +25,9 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
 
         self.__filename = ""
 
+        self.__events = synchevent.SynchronousEventQueue()
+        self.__is_LCD_printing = False
+
         
 
     def on_after_startup(self):
@@ -40,27 +44,44 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         self.__lcdutil.write_to_lcd("Hello! What will", 0, False)
         self.__lcdutil.write_to_lcd("we print today?", 1, False)
         
-        
+    
 
     def on_event(self, event, payload):
         # type (str, dict)
         """
-        Called when an event occurs. Displays print updates; turns off LCD when print stops for any reason.
+        Called when an event occurs. Displays print updates, slicing info, alalysis times, ect.
+
+        If there are more than one on_event call at a time, then it will 
+
         :param event: Event which just happened.
         :param payload: Dictionary of data passed with the event
         """
 
         # Only let useful events continue
         # 'onnect' encapsulates any Connection event
-        useful_events = ['Print', 'onnect', 'Error', 'Slicing', 'MetadataAnalysisFinished', 'Shutdown']
+        useful_events = ['Print', 'onnect', 'Error', 'Slicing', 'MetadataAnalysisFinished', 'Shutdown', 'self_']
         black_list = ['ConnectivityChanged', 'PrinterStateChanged']
         if any(e in event for e in useful_events) and not any(e in event for e in black_list):
             self._logger.info("Event: {}".format(event))
         else:
             return
         
+        # start a synchronous event if there are no events waiting to be executed
+        if not self.__is_LCD_printing:
+            self.__is_LCD_printing = True
+            self.synch_event(event, payload)
+        else:
+            e = synchevent.SynchronousEvent(event, payload)
+            self.__events.put(e)
+        
+        
+    
+    def synch_event(self, event, payload):
+        self._logger.info("Processing Event: {}".format(event))
+
         # Make sure the lcd is enabled for the event
-        self.__lcdutil.light(True, True)
+        self.__lcdutil.light(True)
+
 
         # clear the screen before printing anything for any event that should be cleared beforehand
         clear_screen_events = ['onnect', 'Slicing', 'Error', 'MetadataAnalysisFinished', 'PrintDone', 'PrintStarted']
@@ -114,6 +135,18 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                     text = text.replace(" ", "")
                 self.__lcdutil.write_to_lcd(text, 0, False)
         
+        elif event == 'self_progress':
+            self.__lcdutil.write_to_lcd(self.__filename, 0)
+            self.__lcdutil.write_to_lcd(self._format_progress_bar(payload["progress"]), 1)
+
+
+        """ Start the next synchronous event if there are any events waiting in the queue """
+
+        if not self.__events.empty():
+            e = self.__events.pop()
+            self.synch_event(e.getEvent(), e.getPayload())
+        else:
+            self.__is_LCD_printing = False
 
     def on_print_progress(self, storage, path, progress):
         # type (str, str, int)
@@ -126,15 +159,18 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         if not self._printer.is_printing() or progress == 0:
             return
         
-        self.__lcdutil.write_to_lcd(self.__filename, 0)
-        self.__lcdutil.write_to_lcd(self._format_progress_bar(progress), 1)
+        # pass the progress onto the event manager, so that no to LCD prints will happen at the same time
+        # I know that this is convoluted, but it works for now
+        self.on_event("self_progress", {"progress":progress})
 
+    
     def on_shutdown(self):
         """
         Called on shutdown of OctoPrint. Turn off the LCD.
         """
         self._logger.info("Turning off LCD")
         self.__lcdutil.light(False, True)
+        self.__lcdutil.enable_lcd(False, True)
 
     # Class methods (assisting functions)
     def _create_custom_progress_bar(self):

@@ -4,10 +4,11 @@ import sys
 import logging
 import math
 
+import threading
+
 #setup the imports for the unit test
 sys.modules['Adafruit_CharLCD'] = __import__('dummyLCD')
-sys.path.append('octoprint_adafruitlcd')
-import __init__ as adafruitLCD
+import octoprint_adafruitlcd as adafruitLCD
 
 import dummyLCD as LCD
 
@@ -213,8 +214,36 @@ class TestPlugin(unittest.TestCase):
 
         result = self.getData(plugin).clean_file_name("FooBar_cheeseGrinderv3.gcode")
         self.assertEqual(result, "FooBarCheeseV3")
-        
+    
 
+    def test_asynchronous_events(self):
+        plugin = self.getPlugin()
+
+        thread1 = EventThread(plugin, "PrintStarted", {"name":"foo_bar_cheese_2018-06-24_v2.gcode"})
+        thread2 = EventThread(plugin, "self_progress", {"progress":24})
+
+        thread1.start()
+        thread2.start()
+        thread1.join()
+        thread2.join()
+
+        self.assertTwoLines(plugin, self.getLCDText("FooBarCheeseV2"), "[==\x02       ] 24%")
+
+
+
+
+        
+class EventThread(threading.Thread):
+
+    def __init__(self, plugin, event, payload):
+        # type (Adafruit_16x2_LCD, str, dict) -> None
+        super(EventThread, self).__init__()
+        self.plugin = plugin
+        self.event = event
+        self.payload = payload
+
+    def run(self):
+        self.plugin.on_event(self.event, self.payload)
 
 
 
