@@ -3,29 +3,30 @@ import math
 import re
 import Adafruit_CharLCD as LCD
 
-from . import lcddata
+from . import data
 
 class LCDUtil:
 
-    def __init__(self, lcd, data):
+    def __init__(self, data):
         # type (Adafruit_CharLCDPlate, LCDData) -> None
         """
         Create a new LCDUtil object.  It holds basic utility commands for the LCD
         :lcd: lcd to use
         """
 
+        # setup plugin variables
         self.__data = data
 
+        # Setup class variables
         self.__lcd_enabled = True
         self.__lcd_light = False
         self.__current_lcd_text = [" " * self.__data.lcd_width, " " * self.__data.lcd_width]
 
-        self.__lcd = lcd
-
-        self.__lcd.enable_display(True)
-        self.__lcd.clear()
-        self.__lcd.home()
-        self.__lcd.message("Hold on, I'm\nstill waking up")
+        # Write starting message to lcd
+        self.__data.lcd.enable_display(True)
+        self.__data.lcd.clear()
+        self.__data.lcd.home()
+        self.__data.lcd.message("Hold on, I'm\nstill waking up")
 
     def init(self, logger):
         # type (Logger)
@@ -41,12 +42,12 @@ class LCDUtil:
 
         if force:
             self._logger.info("{}abling lcd; forced: yes".format('En' if enable else 'Dis'))
-            self.__lcd.enable_display(enable)
+            self.__data.lcd.enable_display(enable)
             self.__lcd_enabled = enable
         else:
             if self.__lcd_enabled != enable:
                 self._logger.info("{}abling lcd; forced: no".format('En' if enable else 'Dis'))
-                self.__lcd.enable_display(enable)
+                self.__data.lcd.enable_display(enable)
                 self.__lcd_enabled = enable
 
     def light(self, on, force=False):
@@ -59,12 +60,12 @@ class LCDUtil:
 
         if force:
             self._logger.debug("turning {} lcd light; forced: Yes".format('on' if on else 'off'))
-            self.__lcd.set_backlight(1.0 if on else 0)
+            self.__data.lcd.set_backlight(1.0 if on else 0)
             self.__lcd_light = on
         else:
             if self.__lcd_light != on:
                 self._logger.debug("turning {} lcd light; forced: No".format('on' if on else 'off'))
-                self.__lcd.set_backlight(1.0 if on else 0)
+                self.__data.lcd.set_backlight(1.0 if on else 0)
                 self.__lcd_light = on
 
     def write_to_lcd(self, message, row, clear=True, column=0):
@@ -103,14 +104,14 @@ class LCDUtil:
         # write each different character
         if len(diff) > 0:
             last = diff[0]
-            self.__lcd.set_cursor(column + diff[0], row)
+            self.__data.lcd.set_cursor(column + diff[0], row)
         for i in diff:
             # If the next character to write is not next to the last written 
             # character, go to the new location
             if last != i:
-                self.__lcd.set_cursor(column + i, row)
+                self.__data.lcd.set_cursor(column + i, row)
             # Write the next character
-            self.__lcd.write8(ord(message[i]), True)
+            self.__data.lcd.write8(ord(message[i]), True)
             m[column + i] = message[i]
             self._logger.debug("  {}".format(self.__data.special_chars_to_num(str(message[i]))))
 
@@ -132,7 +133,7 @@ class LCDUtil:
         Prefer this method to clearing the lcd directly.
         """
 
-        self.__lcd.clear()
+        self.__data.lcd.clear()
         self.__current_lcd_text = [" " * self.__data.lcd_width, " " * self.__data.lcd_width]
     
     

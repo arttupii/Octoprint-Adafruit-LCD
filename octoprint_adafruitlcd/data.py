@@ -3,15 +3,20 @@ import re
 class LCDData:
     """
     Holds global data for the plugin, 
-    as well as some miscelanious functions
+    as well as some global functions
     """
 
-    def __init__(self):
+    def __init__(self, lcd):
+        # type (Adafruit_CharLCD)
         self.perc2 = unichr(1)
         self.perc4 = unichr(2)
         self.perc6 = unichr(3)
         self.perc8 = unichr(4)
         self.perc10 = '='
+
+        self.lcd = lcd
+
+        self.fileName = ""
 
         self.lcd_width = 16
     

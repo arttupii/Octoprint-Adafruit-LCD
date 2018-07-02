@@ -5,9 +5,10 @@ import octoprint.plugin
 import math
 import re
 
-from . import lcdutil
-from . import lcddata
-from . import synchevent
+from . import util
+from . import data
+from . import synchronousEvent
+from . import events
 
 class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                     octoprint.plugin.ProgressPlugin,
@@ -17,15 +18,13 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
     def __init__(self):
         # constants
 
-        self.__lcd = LCD.Adafruit_CharLCDPlate()
-
-        
-        self.__data = lcddata.LCDData()
-        self.__lcdutil = lcdutil.LCDUtil(self.__lcd, self.__data)
+        self.__data = data.LCDData(LCD.Adafruit_CharLCDPlate())
+        self.__util = util.LCDUtil(self.__data)
+        self.__events = events.Events(self.__data, self.__util)
 
         self.__filename = ""
 
-        self.__events = synchevent.SynchronousEventQueue()
+        self.__synchronous_events = synchronousEvent.SynchronousEventQueue()
         self.__is_LCD_printing = False
 
         
@@ -35,14 +34,14 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         Runs when plugin is started. Turn on and clear the LCD.
         """
 
-        self.__lcdutil.init(self._logger)
+        self.__util.init(self._logger)
 
         self._logger.debug("Starting Verbose Debugger")
         self._logger.info("Adafruit 16x2 LCD starting")
 
-        self.__lcdutil.clear()
-        self.__lcdutil.write_to_lcd("Hello! What will", 0, False)
-        self.__lcdutil.write_to_lcd("we print today?", 1, False)
+        self.__util.clear()
+        self.__util.write_to_lcd("Hello! What will", 0, False)
+        self.__util.write_to_lcd("we print today?", 1, False)
         
     
 
@@ -59,8 +58,9 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
 
         # Only let useful events continue
         # 'onnect' encapsulates any Connection event
-        useful_events = ['Print', 'onnect', 'Error', 'Slicing', 'MetadataAnalysisFinished', 'Shutdown', 'self_']
-        black_list = ['ConnectivityChanged', 'PrinterStateChanged']
+        # 'Anal' encapsulates any MetaData Analysing events
+        useful_events = ['Print', 'onnect', 'Error', 'Slicing', 'Anal', 'Shutdown', 'self_']
+        black_list = ['ConnectivityChanged', 'PrinterStateChanged', 'Profile']
         if any(e in event for e in useful_events) and not any(e in event for e in black_list):
             self._logger.info("Event: {}".format(event))
         else:
@@ -69,84 +69,50 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         # start a synchronous event if there are no events waiting to be executed
         if not self.__is_LCD_printing:
             self.__is_LCD_printing = True
-            self.synch_event(event, payload)
+            self.synchronous_event(self.__synchronous_events, event, payload)
+            self.__is_LCD_printing = False
         else:
-            e = synchevent.SynchronousEvent(event, payload)
-            self.__events.put(e)
+            e = synchronousEvent.SynchronousEvent(event, payload)
+            self.__synchronous_events.put(e)
         
         
     
-    def synch_event(self, event, payload):
+    def synchronous_event(self, eventManager, event, payload):
+        # type (SynchronousEventQueue, str, dict) -> None
+        """
+        Can not be called asynchronously.  To protect from asynchronous 
+        calls, use the SynchronousEventQueue class
+        """
         self._logger.info("Processing Event: {}".format(event))
 
         # Make sure the lcd is enabled for the event
-        self.__lcdutil.light(True)
+        self.__util.light(True)
 
-
-        # clear the screen before printing anything for any event that should be cleared beforehand
-        clear_screen_events = ['onnect', 'Slicing', 'Error', 'MetadataAnalysisFinished', 'PrintDone', 'PrintStarted']
-        if any(e in event for e in clear_screen_events):
-            self.__lcdutil.clear()
-
-        # simple events that should only need the event printed
-        simple_events = ['onnect', 'Print', 'Error', 'Slicing']
-        if any(e in event for e in simple_events):
-            self.__lcdutil.write_to_lcd(event, 0)
-
-        # special implementation for events
-
-        # turn on the lcd if any event has been triggered other than Disconnected
-        if event == 'Disconnected' or event == 'Shutdown':
-            self.__lcdutil.clear()
-            self.__lcdutil.enable_lcd(False, True)
-            self.__lcdutil.light(False, True)
-        else:
-            self.__lcdutil.enable_lcd(True)
+        # Connect events
+        if 'onnect' in event:
+            self.__events.on_connect_event(event, payload)
         
-        if event == 'Error':
-            self.__lcdutil.write_to_lcd(payload["error"], 1, False)
+        elif event == 'Error':
+            self.__events.on_error_event(event, payload)
         
-        elif event == 'PrintDone':
-            seconds = payload["time"]
-            hours = int(math.floor(seconds / 3600))
-            minutes = int(math.floor(seconds / 60) % 60)
-            self.__lcdutil.write_to_lcd("Time: {} h,{} m".format(hours, minutes), 1, False)
+        elif 'Print' in event:
+            self.__events.on_print_event(event, payload)
         
-        elif event == 'PrintStarted':
-            name = payload["name"]
-            # Clean up the file name to better fit the screen
-            name = self.__data.clean_file_name(name)
-            self.__lcdutil.write_to_lcd(name, 1, False)
-            self.__filename = name
-            # Create custom progress bar every time a print starts
-            self._create_custom_progress_bar()
-
-        elif event == 'MetadataAnalysisFinished':
-            self.__lcdutil.write_to_lcd("Analysis Finish", 0, False)
-            self.__lcdutil.write_to_lcd(self.__data.clean_file_name(payload["name"]), 1, False)
+        elif 'Anal' in event:
+            self.__events.on_analysys_event(event, payload)
         
-        elif "Slicing" in event and "Profile" not in event:
-            self.__lcdutil.write_to_lcd(self.__data.clean_file_name(payload["stl"]), 1, False)
-            if event == 'SlicingDone':
-                min = int(math.floor(payload["time"] / 60))
-                sec = int(math.floor(payload["time"]) % 60)
-                text = "SlicingDone {}:{}".format(min, sec)
-                if len(text) > 16:
-                    text = text.replace(" ", "")
-                self.__lcdutil.write_to_lcd(text, 0, False)
+        elif "Slicing" in event:
+            self.__events.on_slicing_event(event, payload)
         
         elif event == 'self_progress':
-            self.__lcdutil.write_to_lcd(self.__filename, 0)
-            self.__lcdutil.write_to_lcd(self._format_progress_bar(payload["progress"]), 1)
+            self.__events.on_progress_event(event, payload)
 
 
         """ Start the next synchronous event if there are any events waiting in the queue """
 
-        if not self.__events.empty():
-            e = self.__events.pop()
-            self.synch_event(e.getEvent(), e.getPayload())
-        else:
-            self.__is_LCD_printing = False
+        if not eventManager.empty():
+            e = eventManager.pop()
+            self.synchronous_event(eventManager, e.getEvent(), e.getPayload())
 
     def on_print_progress(self, storage, path, progress):
         # type (str, str, int)
@@ -156,58 +122,45 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         :param path: Path of file being printed
         :param progress: Progress of print
         """
-        if not self._printer.is_printing() or progress == 0:
+        if not self._printer.is_printing() or progress == 0 or progress == 100:
             return
         
-        # pass the progress onto the event manager, so that no to LCD prints will happen at the same time
-        # I know that this is convoluted, but it works for now
-        self.on_event("self_progress", {"progress":progress})
+        # pass the progress onto the event manager, so that no to LCD prints will
+        # happen at the same time.
+        # I know that this is a bit convoluted, but it works for now
+        self.on_event("self_progress", {'progress':progress, 'name':self.__data.fileName})
 
-    
+    def on_slicing_progress(self, slicer, source_location, source_path, destination_location, destination_path, progress):
+        # type (str, str, str, str, str, int) -> None
+        """
+        Called on 1% slicing progress updates. Displays the new progress on the LCD.
+        :param storage: File being printed
+        :param path: Path of file being printed
+        :param progress: Progress of print
+        """
+
+        if progress == 0 or progress == 100:
+            return
+        
+        self.on_event("self_progress", {'progress':progress, 'name':self.__data.fileName})
+
     def on_shutdown(self):
         """
         Called on shutdown of OctoPrint. Turn off the LCD.
         """
         self._logger.info("Turning off LCD")
-        self.__lcdutil.light(False, True)
-        self.__lcdutil.enable_lcd(False, True)
+        self.__util.light(False, True)
+        self.__util.enable_lcd(False, True)
 
     # Class methods (assisting functions)
     def _create_custom_progress_bar(self):
         """
         Load the custom progress bar into the lcd screen
         """
-        self.__lcd.create_char(ord(self.__data.perc2), [0, 0, 0b10000, 0, 0b10000, 0, 0, 0])
-        self.__lcd.create_char(ord(self.__data.perc4), [0, 0, 0b11000, 0, 0b11000, 0, 0, 0])
-        self.__lcd.create_char(ord(self.__data.perc6), [0, 0, 0b11100, 0, 0b11100, 0, 0, 0])
-        self.__lcd.create_char(ord(self.__data.perc8), [0, 0, 0b11110, 0, 0b11110, 0, 0, 0])
-
-    
-
-    def _format_progress_bar(self, progress):
-        # type (int) -> None
-        """
-        Create a formatted string 'progress bar' based on the given value
-        :param progress: Progress (0-100) of the print
-        :return: Formatted string representing a progress bar
-        """
-
-        switcher = {
-            0: ' ',
-            1: self.__data.perc2,
-            2: self.__data.perc4,
-            3: self.__data.perc6,
-            4: self.__data.perc8,
-            5: self.__data.perc10
-        }
-
-        bar = self.__data.perc10 * int(round(progress / 10))
-        bar += switcher[(progress % 10) / 2]
-        bar += ' ' * (10 - len(bar))
-        
-        return "[{}] {}%".format(bar, str(progress))
-
-    
+        self.__data.lcd.create_char(ord(self.__data.perc2), [0, 0, 0b10000, 0, 0b10000, 0, 0, 0])
+        self.__data.lcd.create_char(ord(self.__data.perc4), [0, 0, 0b11000, 0, 0b11000, 0, 0, 0])
+        self.__data.lcd.create_char(ord(self.__data.perc6), [0, 0, 0b11100, 0, 0b11100, 0, 0, 0])
+        self.__data.lcd.create_char(ord(self.__data.perc8), [0, 0, 0b11110, 0, 0b11110, 0, 0, 0])
     
     
 

@@ -44,14 +44,15 @@ class TestPlugin(unittest.TestCase):
 
         return plugin
     
-    def getLCD(self, plugin):
-        return plugin._Adafruit_16x2_LCD__lcd
     
     def getData(self, plugin):
         return plugin._Adafruit_16x2_LCD__data
-    
+
+    def getLCD(self, plugin):
+        return self.getData(plugin).lcd
+
     def getUtil(self, plugin):
-        return plugin._Adafruit_16x2_LCD__lcdutil
+        return plugin._Adafruit_16x2_LCD__util
     
     def getLCDBuffer(self, plugin, row):
         return self.getUtil(plugin)._LCDUtil__current_lcd_text[row]
@@ -111,6 +112,13 @@ class TestPlugin(unittest.TestCase):
         plugin.on_event("SlicingDone", {"stl":"foo_bar_v4_20180626.stl", "time":123.354})
         self.assertTwoLines(plugin, self.getLCDText("SlicingDone 2:3"), "FooBarV420180626")
 
+        # slicing started
+        plugin.on_event("SlicingStarted", {"stl": "foo_bar_201806262_v4.stl", "progressAvailable":True})
+        self.assertTwoLines(plugin, self.getLCDText("SlicingStarted"), self.getLCDText("FooBarV4"))
+
+        # slicing percentage
+        plugin.on_slicing_progress("foo", "bar", "fee", "fi", "fo", 34)
+        self.assertTwoLines(plugin, self.getLCDText("FooBarV4"), "[===\x02      ] 34%")
 
 
     def test_progress(self):
@@ -131,7 +139,7 @@ class TestPlugin(unittest.TestCase):
         plugin.on_event("Error", {"error":"could not connect"})
         result = self.getLCD(plugin).getEnabled()
         self.assertEqual(result, True)
-        self.assertTwoLines(plugin, self.getLCDText("Error"), self.getLCDText("could not connect"))
+        self.assertTwoLines(plugin, self.getLCDText("Error"), self.getLCDText("CouldNotConnect"))
 
         plugin.on_event("Connected", None)
         result = self.getLCD(plugin).getEnabled()
@@ -220,7 +228,7 @@ class TestPlugin(unittest.TestCase):
         plugin = self.getPlugin()
 
         thread1 = EventThread(plugin, "PrintStarted", {"name":"foo_bar_cheese_2018-06-24_v2.gcode"})
-        thread2 = EventThread(plugin, "self_progress", {"progress":24})
+        thread2 = EventThread(plugin, "self_progress", {"progress":24, 'name':"FooBarCheeseV2"})
 
         thread1.start()
         thread2.start()
