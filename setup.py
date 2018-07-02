@@ -13,7 +13,7 @@ plugin_package = "octoprint_adafruitlcd"
 plugin_name = "Adafruit 16x2 LCD"
 
 # The plugin's version. Can be overwritten within OctoPrint's internal data via __plugin_version__ in the plugin module
-plugin_version = "0.2.0"
+plugin_version = "0.3.0"
 
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
 # module
@@ -33,6 +33,8 @@ plugin_license = "MIT"
 
 # Any additional requirements besides OctoPrint should be listed here
 plugin_requires = ['smbus2', 'Adafruit_CharLCD']
+
+additional_setup_parameters = {"dependency_links": ["https://github.com/adafruit/Adafruit_Python_CharLCD/archive/master.zip#egg=Adafruit_CharLCD"]}
 
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point
@@ -56,7 +58,6 @@ plugin_ignored_packages = []
 # Example:
 #     plugin_requires = ["someDependency==dev"]
 #     additional_setup_parameters = {"dependency_links": ["https://github.com/someUser/someRepo/archive/master.zip#egg=someDependency-dev"]}
-additional_setup_parameters = {"dependency_links": ["https://github.com/adafruit/Adafruit_Python_CharLCD/archive/master.zip#egg=Adafruit_CharLCD"]}
 
 ########################################################################################################################
 
