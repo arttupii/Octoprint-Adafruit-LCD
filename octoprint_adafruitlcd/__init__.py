@@ -152,17 +152,6 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         self.__util.light(False, True)
         self.__util.enable_lcd(False, True)
 
-    # Class methods (assisting functions)
-    def _create_custom_progress_bar(self):
-        """
-        Load the custom progress bar into the lcd screen
-        """
-        self.__data.lcd.create_char(ord(self.__data.perc2), [0, 0, 0b10000, 0, 0b10000, 0, 0, 0])
-        self.__data.lcd.create_char(ord(self.__data.perc4), [0, 0, 0b11000, 0, 0b11000, 0, 0, 0])
-        self.__data.lcd.create_char(ord(self.__data.perc6), [0, 0, 0b11100, 0, 0b11100, 0, 0, 0])
-        self.__data.lcd.create_char(ord(self.__data.perc8), [0, 0, 0b11110, 0, 0b11110, 0, 0, 0])
-    
-    
 
 __plugin_name__ = "Adafruit 16x2 LCD"
 

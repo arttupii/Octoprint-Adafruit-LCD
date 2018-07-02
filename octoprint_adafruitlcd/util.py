@@ -137,6 +137,14 @@ class LCDUtil:
         self.__current_lcd_text = [" " * self.__data.lcd_width, " " * self.__data.lcd_width]
     
     
+    def create_custom_progress_bar(self):
+        """
+        Load the custom progress bar into the lcd screen
+        """
+        self.__data.lcd.create_char(ord(self.__data.perc2), [0, 0, 0b10000, 0, 0b10000, 0, 0, 0])
+        self.__data.lcd.create_char(ord(self.__data.perc4), [0, 0, 0b11000, 0, 0b11000, 0, 0, 0])
+        self.__data.lcd.create_char(ord(self.__data.perc6), [0, 0, 0b11100, 0, 0b11100, 0, 0, 0])
+        self.__data.lcd.create_char(ord(self.__data.perc8), [0, 0, 0b11110, 0, 0b11110, 0, 0, 0])
 
     
 

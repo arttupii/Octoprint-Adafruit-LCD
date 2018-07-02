@@ -30,6 +30,7 @@ class Events:
             return
         
         if event == 'PrintStarted':
+            self.__util.create_custom_progress_bar()
             self.__data.fileName = self.__data.clean_file_name(data['name'])
             self.__util.write_to_lcd(self.__data.fileName, 1)
 
