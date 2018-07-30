@@ -5,10 +5,9 @@ import octoprint.plugin
 import math
 import re
 
-import octoprint_adafruitlcd
-from . import util
-from . import synchronousEvent
-from . import events
+from octoprint_adafruitlcd import synchronousEvent
+from octoprint_adafruitlcd import util
+from octoprint_adafruitlcd import events
 
 
 class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
@@ -19,27 +18,26 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
     def __init__(self):
         # constants
 
-        self.__util = util.LCDUtil()
-        self.__events = events.Events(self.__util)
-
         self.__filename = ""
 
         self.__synchronous_events = synchronousEvent.SynchronousEventQueue()
         self.__is_LCD_printing = False
+
+        util.init()
 
     def on_after_startup(self):
         """
         Runs when plugin is started. Turn on and clear the LCD.
         """
 
-        self.__util.init(self._logger)
+        util.logger = self._logger
 
         self._logger.debug("Starting Verbose Debugger")
         self._logger.info("Adafruit 16x2 LCD starting")
 
-        self.__util.clear()
-        self.__util.write_to_lcd("Hello! What will", 0, False)
-        self.__util.write_to_lcd("we print today?", 1, False)
+        util.clear()
+        util.write_to_lcd("Hello! What will", 0, False)
+        util.write_to_lcd("we print today?", 1, False)
 
     def on_event(self, event, payload):
         # type (str, dict)
@@ -84,26 +82,26 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         self._logger.info("Processing Event: {}".format(event))
 
         # Make sure the lcd is enabled for the event
-        self.__util.light(True)
+        util.light(True)
 
         # Connect events
         if 'onnect' in event:
-            self.__events.on_connect_event(event, payload)
+            events.on_connect_event(event, payload)
 
         elif event == 'Error':
-            self.__events.on_error_event(event, payload)
+            events.on_error_event(event, payload)
 
         elif 'Print' in event:
-            self.__events.on_print_event(event, payload)
+            events.on_print_event(event, payload)
 
         elif 'Anal' in event:
-            self.__events.on_analysys_event(event, payload)
+            events.on_analysys_event(event, payload)
 
         elif "Slicing" in event:
-            self.__events.on_slicing_event(event, payload)
+            events.on_slicing_event(event, payload)
 
         elif event == 'self_progress':
-            self.__events.on_progress_event(event, payload)
+            events.on_progress_event(event, payload)
 
         """ Start the next synchronous event if there are any events waiting
         in the queue """
@@ -154,8 +152,8 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         Called on shutdown of OctoPrint. Turn off the LCD.
         """
         self._logger.info("Turning off LCD")
-        self.__util.light(False, True)
-        self.__util.enable_lcd(False, True)
+        util.light(False, True)
+        util.enable_lcd(False, True)
 
 
 __plugin_name__ = "Adafruit 16x2 LCD"

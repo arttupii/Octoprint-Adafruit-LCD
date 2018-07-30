@@ -46,11 +46,8 @@ class TestPlugin(unittest.TestCase):
     def getLCD(self, plugin):
         return adafruitLCD.data.lcd
 
-    def getUtil(self, plugin):
-        return plugin._Adafruit_16x2_LCD__util
-
     def getLCDBuffer(self, plugin, row):
-        return self.getUtil(plugin)._LCDUtil__current_lcd_text[row]
+        return adafruitLCD.util._current_lcd_text[row]
 
     def assertTwoLines(self, plugin, line1, line2):
         self.assertEqual(self.getLCD(plugin).getLCDText(0), line1)
@@ -59,7 +56,7 @@ class TestPlugin(unittest.TestCase):
     def test_basic_write(self):
         plugin = self.getPlugin()
 
-        self.getUtil(plugin).write_to_lcd("Hello World!", 0, True, 0)
+        adafruitLCD.util.write_to_lcd("Hello World!", 0, True, 0)
 
         result = self.getLCDBuffer(plugin, 0)
         self.assertEqual(result, self.getLCDText("Hello World!"))
