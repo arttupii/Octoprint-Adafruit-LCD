@@ -40,7 +40,7 @@ def enable_lcd(enable, force=False):
         data.lcd.enable_display(enable)
         _lcd_enabled = enable
     else:
-        if _lcd_enabled != enable:
+        if _lcd_enabled is not enable:
             logger.info("{}abling lcd; forced: no".format(
                         'En' if enable else 'Dis'))
             data.lcd.enable_display(enable)
@@ -63,7 +63,7 @@ def light(on, force=False):
         data.lcd.set_backlight(1.0 if on else 0)
         _lcd_light = on
     else:
-        if _lcd_light != on:
+        if _lcd_light is not on:
             logger.debug("turning {} lcd light; forced: No".format(
                          'on' if on else 'off'))
             data.lcd.set_backlight(1.0 if on else 0)
@@ -116,7 +116,7 @@ def write_to_lcd(message, row, clear=True, column=0):
     for i in diff:
         # If the next character to write is not next to the last written
         # character, go to the new location
-        if last != i:
+        if last is not i:
             data.lcd.set_cursor(column + i, row)
         # Write the next character
         data.lcd.write8(ord(message[i]), True)

@@ -33,7 +33,7 @@ class SynchronousEventQueue:
         Check if the queue is empty
         :return: True if empty
         """
-        return len(self.__event_queue) == 0
+        return len(self.__event_queue) is 0
 
     def put(self, event):
         # type (SynchronousEvent) -> None

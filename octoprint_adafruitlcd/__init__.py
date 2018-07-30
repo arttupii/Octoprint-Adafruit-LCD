@@ -18,8 +18,6 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
     def __init__(self):
         # constants
 
-        self.__filename = ""
-
         self.__synchronous_events = synchronousEvent.SynchronousEventQueue()
         self.__is_LCD_printing = False
 
@@ -67,48 +65,11 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         # executed
         if not self.__is_LCD_printing:
             self.__is_LCD_printing = True
-            self.synchronous_event(self.__synchronous_events, event, payload)
+            events.on_event(self.__synchronous_events, event, payload)
             self.__is_LCD_printing = False
         else:
             e = synchronousEvent.SynchronousEvent(event, payload)
             self.__synchronous_events.put(e)
-
-    def synchronous_event(self, eventManager, event, payload):
-        # type (SynchronousEventQueue, str, dict) -> None
-        """
-        Can not be called asynchronously.  To protect from asynchronous
-        calls, use the SynchronousEventQueue class
-        """
-        self._logger.info("Processing Event: {}".format(event))
-
-        # Make sure the lcd is enabled for the event
-        util.light(True)
-
-        # Connect events
-        if 'onnect' in event:
-            events.on_connect_event(event, payload)
-
-        elif event == 'Error':
-            events.on_error_event(event, payload)
-
-        elif 'Print' in event:
-            events.on_print_event(event, payload)
-
-        elif 'Anal' in event:
-            events.on_analysys_event(event, payload)
-
-        elif "Slicing" in event:
-            events.on_slicing_event(event, payload)
-
-        elif event == 'self_progress':
-            events.on_progress_event(event, payload)
-
-        """ Start the next synchronous event if there are any events waiting
-        in the queue """
-
-        if not eventManager.empty():
-            e = eventManager.pop()
-            self.synchronous_event(eventManager, e.getEvent(), e.getPayload())
 
     def on_print_progress(self, storage, path, progress):
         # type (str, str, int)
@@ -120,7 +81,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         :param path: Path of file being printed
         :param progress: Progress of print
         """
-        if not self._printer.is_printing() or progress == 0 or progress == 100:
+        if not self._printer.is_printing() or progress is 0 or progress is 100:
             return
 
         # pass the progress onto the event manager, so that no to LCD prints
@@ -141,7 +102,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         :param progress: Progress of print
         """
 
-        if progress == 0 or progress == 100:
+        if progress is 0 or progress is 100:
             return
 
         self.on_event("self_progress", {'progress': progress,
