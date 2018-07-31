@@ -26,7 +26,7 @@ class TestPlugin(unittest.TestCase):
 
         adafruitLCD.util.write_to_lcd("Hello World!", 0, True, 0)
 
-        result = pluginUtil.getLCD(0)
+        result = pluginUtil.getLCD().getLCDText(0)
         self.assertEqual(result, pluginUtil.getLCDText("Hello World!"))
 
         result = pluginUtil.getLCD().getLCDText(0)
