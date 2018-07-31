@@ -2,12 +2,14 @@
 from __future__ import absolute_import
 import Adafruit_CharLCD as LCD
 import octoprint.plugin
+import octoprint.util
 import math
 import re
 
 from octoprint_adafruitlcd import synchronousEvent
 from octoprint_adafruitlcd import util
 from octoprint_adafruitlcd import events
+from octoprint_adafruitlcd.printerStats import PrinterStats
 
 
 class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
@@ -21,6 +23,8 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         self.__synchronous_events = synchronousEvent.SynchronousEventQueue()
         self.__is_LCD_printing = False
 
+        events.carousel.init()
+
         util.init()
 
     def on_after_startup(self):
@@ -32,6 +36,8 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
 
         self._logger.debug("Starting Verbose Debugger")
         self._logger.info("Adafruit 16x2 LCD starting")
+
+        self._printer.register_callback(PrinterStats())
 
         util.clear()
         util.write_to_lcd("Hello! What will", 0, False)
@@ -84,9 +90,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         if not self._printer.is_printing() or progress is 0 or progress is 100:
             return
 
-        # pass the progress onto the event manager, so that no to LCD prints
-        # will happen at the same time.
-        # I know that this is a bit convoluted, but it works for now
+        # send this event to the event manager
         self.on_event("self_progress", {'progress': progress,
                       'name': data.fileName})
 

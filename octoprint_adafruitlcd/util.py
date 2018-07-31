@@ -107,7 +107,7 @@ def write_to_lcd(message, row, clear=True, column=0):
     # being written
     m = list(_current_lcd_text[row])
 
-    logger.debug("Writing characters:")
+    # logger.debug("Writing characters:")
 
     # write each different character
     if len(diff) > 0:
@@ -121,8 +121,8 @@ def write_to_lcd(message, row, clear=True, column=0):
         # Write the next character
         data.lcd.write8(ord(message[i]), True)
         m[column + i] = message[i]
-        logger.debug("  {}".format(data.special_chars_to_num(
-                     str(message[i]))))
+        # logger.debug("  {}".format(data.special_chars_to_num(
+        #              str(message[i]))))
 
         # set last to the selected index
         last = i + 1
