@@ -6,10 +6,9 @@ import octoprint.util
 import math
 import re
 
-from octoprint_adafruitlcd import synchronousEvent
+from octoprint_adafruitlcd import data
 from octoprint_adafruitlcd import util
 from octoprint_adafruitlcd import events
-from octoprint_adafruitlcd import data
 from octoprint_adafruitlcd.printerStats import PrinterStats
 
 
@@ -21,11 +20,6 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
     def __init__(self):
         # constants
 
-        self.__synchronous_events = synchronousEvent.SynchronousEventQueue()
-        self.__is_LCD_printing = False
-
-        events.carousel.init()
-
         util.init()
 
     def on_after_startup(self):
@@ -34,6 +28,9 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         """
 
         util.logger = self._logger
+        events.logger = self._logger
+
+        events.carousel.init()
 
         self._logger.debug("Starting Verbose Debugger")
         self._logger.info("Adafruit 16x2 LCD starting")
@@ -68,15 +65,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         else:
             return
 
-        # start a synchronous event if there are no events waiting to be
-        # executed
-        if not self.__is_LCD_printing:
-            self.__is_LCD_printing = True
-            events.on_event(self.__synchronous_events, event, payload)
-            self.__is_LCD_printing = False
-        else:
-            e = synchronousEvent.SynchronousEvent(event, payload)
-            self.__synchronous_events.put(e)
+        events.on_event(event, payload)
 
     def on_print_progress(self, storage, path, progress):
         # type (str, str, int)
@@ -92,8 +81,8 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
             return
 
         # send this event to the event manager
-        self.on_event("self_progress", {'progress': progress,
-                      'name': data.fileName})
+        events.on_event("self_progress", {'progress': progress,
+                        'name': data.fileName})
 
     def on_slicing_progress(self, slicer, source_location, source_path,
                             destination_location, destination_path, progress):
@@ -110,8 +99,8 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         if progress is 0 or progress is 100:
             return
 
-        self.on_event("self_progress", {'progress': progress,
-                      'name': data.fileName})
+        events.on_event("self_progress", {'progress': progress,
+                        'name': data.fileName})
 
     def on_shutdown(self):
         """

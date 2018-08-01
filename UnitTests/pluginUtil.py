@@ -19,8 +19,8 @@ def getPlugin():
     logging.basicConfig()
     plugin._logger = logging.getLogger("logging")
 
-    # plugin._logger.setLevel(10) #debug
-    # plugin._logger.setLevel(20) #info
+    # plugin._logger.setLevel(10)  # debug
+    # plugin._logger.setLevel(20)  # info
     plugin._logger.setLevel(40)  # error
 
     plugin._printer = printer

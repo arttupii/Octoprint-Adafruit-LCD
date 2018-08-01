@@ -5,6 +5,7 @@ import octoprint.util
 from octoprint_adafruitlcd import data
 from octoprint_adafruitlcd import util
 from octoprint_adafruitlcd.printerStats import PrinterStats
+from octoprint_adafruitlcd import synchronousEvent
 
 
 """
@@ -21,6 +22,8 @@ differentiating between more specific events
 _progress = 0
 _name = ''
 
+logger = None
+
 
 def on_print_event(event, payload):
     # type (str, dict) -> None
@@ -28,7 +31,7 @@ def on_print_event(event, payload):
     util.write_to_lcd(event, 0)
 
     if event is 'PrintDone':
-        carousel.timer.cancel()
+        carousel.stop()
         util.write_to_lcd("Time: " + format_time(payload['time']), 1)
         return
 
@@ -36,7 +39,7 @@ def on_print_event(event, payload):
         util.create_custom_progress_bar()
         data.fileName = data.clean_file_name(payload['name'])
         util.write_to_lcd(data.fileName, 1)
-        carousel.timer.start()
+        carousel.startPrint()
 
 
 def on_connect_event(event, payload):
@@ -104,6 +107,11 @@ def on_progress_event(event, payload):
     _progress = payload['progress']
     _name = payload['name']
 
+    if carousel.isPrinting and \
+       carousel.EVENTS[carousel._current] is not 'self_progress':
+        logger.info("The progress bar should not be updated yet, skipping")
+        return
+
     switcher = {
         0: ' ',
         1: data.perc2,
@@ -139,16 +147,17 @@ def format_time(seconds):
     return "{} h,{} m".format(hours, minutes)
 
 
-def on_event(eventManager, event, payload):
+_synchronous_events = synchronousEvent.SynchronousEventQueue()
+_is_LCD_printing = False
+
+
+def _on_synchronous_event(eventManager, event, payload):
     # type (SynchronousEventQueue, str, dict) -> None
     """
     Can not be called asynchronously.  To protect from asynchronous
     calls, use the SynchronousEventQueue class
     """
-    # self._logger.info("Processing Event: {}".format(event))
-
-    # Make sure the lcd is enabled for the event
-    util.light(True)
+    logger.info("Processing Event: {}".format(event))
 
     if 'onnect' in event:
         on_connect_event(event, payload)
@@ -162,54 +171,89 @@ def on_event(eventManager, event, payload):
         on_slicing_event(event, payload)
     elif event is 'self_progress':
         on_progress_event(event, payload)
+    elif event is 'self_time_left':
+        on_time_left_event(event, payload)
+    elif event is 'self_time':
+        on_time_event(event, payload)
 
     """ Start the next synchronous event if there are any events waiting in
     the queue """
 
     if not eventManager.empty():
         e = eventManager.pop()
-        on_event(eventManager, e.getEvent(), e.getPayload())
+        _on_synchronous_event(eventManager, e.getEvent(), e.getPayload())
+
+
+def on_event(event, payload):
+    # start a synchronous event if there are no events waiting to be
+    # executed
+    global _is_LCD_printing
+    if not _is_LCD_printing:
+        _is_LCD_printing = True
+        logger.debug("starting the {event} synchronous event".format(
+            event=event))
+        _on_synchronous_event(_synchronous_events, event, payload)
+        _is_LCD_printing = False
+    else:
+        logger.debug("adding the {event} event to \
+            the synchronous event queue".format(event=event))
+        e = synchronousEvent.SynchronousEvent(event, payload)
+        _synchronous_events.put(e)
 
 
 class carousel:
     """
     The carousel class is a static class, so no instance should be created
     To setup the carousel, init should be called first
-    to start the carousel, call timer.start(), and timer.cancel() to stop
     """
 
-    EVENTS = ['time_left', 'time', 'progress']
+    EVENTS = ['self_progress', 'self_time_left', 'self_time']
     _current = 0
 
     interval = 30
+    isPrinting = False
 
     timer = None
 
     @classmethod
     def init(cls):
-        cls.timer = octoprint.util.RepeatedTimer(
-            cls.interval,
-            cls.on_event,
-            run_first=False
-        )
+        cls.timer = octoprint.util.RepeatedTimer(cls.interval, cls.on_event)
 
     @classmethod
-    def on_event(cls, event='carousel'):
+    def startPrint(cls):
+        cls._current = 0
+        if cls.isPrinting or cls.timer.isAlive():
+            logger.error("Carousel is already running!  Restarting")
+            cls.timer.cancel()
+            cls.timer.start()
+            return
+        logger.debug("Starting print carousel")
+        cls.timer.start()
+        cls.isPrinting = True
 
+    @classmethod
+    def stop(cls):
+        logger.debug("Stopping print carousel")
+        cls.timer.cancel()
+        cls.isPrinting = False
+
+    @classmethod
+    def on_event(cls):
+        cls._current += 1
         if cls._current >= len(cls.EVENTS):
             cls._current = 0
 
         event = cls.EVENTS[cls._current]
 
-        if event is 'time_left':
-            on_time_left_event(event, {
-                'timeLeft': PrinterStats.get_print_time_left()})
-        elif event is 'time':
-            on_time_event(event, {'time': PrinterStats.get_print_time()})
-        elif event is 'progress':
-            on_progress_event(event, {'progress': _progress, 'name': _name})
+        logger.info("Carousel Event: {}".format(event))
 
-        cls._current += 1
+        if event is 'self_time_left':
+            on_event(event, {
+                'timeLeft': PrinterStats.get_print_time_left()})
+        elif event is 'self_time':
+            on_event(event, {'time': PrinterStats.get_print_time()})
+        elif event is 'self_progress':
+            on_event(event, {'progress': _progress, 'name': _name})
 
     @classmethod
     def interval(cls):

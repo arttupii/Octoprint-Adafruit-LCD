@@ -103,10 +103,8 @@ class TestPlugin(unittest.TestCase):
 
         plugin.on_print_progress(None, None, 37)
 
-        result = pluginUtil.getLCD().getLCDText(0)
-        self.assertEqual(result, "FooBar20180624V2")
-        result = pluginUtil.getLCD().getLCDText(1)
-        self.assertEqual(result, pluginUtil.getLCDText("[===\x03      ] 37%"))
+        self.assertTwoLines("FooBar20180624V2",
+                            pluginUtil.getLCDText("[===\x03      ] 37%"))
 
     def test_pseudo_print(self):
         plugin = pluginUtil.getPlugin()
