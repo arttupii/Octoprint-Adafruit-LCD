@@ -19,7 +19,9 @@ class TestCarousel(unittest.TestCase):
     def test_print(self):
         plugin = pluginUtil.getPlugin()
 
-        adafruitLCD.events.carousel.interval = 1
+        t = 1
+
+        adafruitLCD.events.carousel.time_interval = t
 
         plugin.on_event('PrintStarted', {'name': 'foo.gcode'})
 
@@ -30,17 +32,17 @@ class TestCarousel(unittest.TestCase):
 
         pluginUtil.printer.updateData(90, 120)
 
-        time.sleep(1.5)
+        time.sleep(1.5 * t)
 
         self.assertTwoLines(pluginUtil.getLCDText('foo.gcode'),
                             pluginUtil.getLCDText('Left: 0 h,2 m'))
 
-        time.sleep(1)
+        time.sleep(1 * t)
 
         self.assertTwoLines(pluginUtil.getLCDText('foo.gcode'),
                             pluginUtil.getLCDText('Time: 0 h,1 m'))
 
-        time.sleep(1)
+        time.sleep(1 * t)
 
         self.assertTwoLines(pluginUtil.getLCDText('foo.gcode'),
                             '[          ] 1% ')

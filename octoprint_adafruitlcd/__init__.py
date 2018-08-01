@@ -29,6 +29,7 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
 
         util.logger = self._logger
         events.logger = self._logger
+        printerStats.logger = self._logger
 
         events.carousel.init()
 

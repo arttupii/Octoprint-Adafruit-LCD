@@ -210,7 +210,7 @@ class carousel:
     EVENTS = ['self_progress', 'self_time_left', 'self_time']
     _current = 0
 
-    interval = 30
+    time_interval = 30
     isPrinting = False
 
     timer = None
@@ -257,4 +257,4 @@ class carousel:
 
     @classmethod
     def interval(cls):
-        return cls.interval
+        return cls.time_interval
