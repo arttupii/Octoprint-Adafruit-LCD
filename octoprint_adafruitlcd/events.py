@@ -1,11 +1,14 @@
 import math
 
-import octoprint.util
+from octoprint_adafruitlcd import globalVars
+from octoprint_adafruitlcd.globalVars import getLogger
 
 from octoprint_adafruitlcd import data
 from octoprint_adafruitlcd import util
-from octoprint_adafruitlcd.printerStats import PrinterStats
 from octoprint_adafruitlcd import synchronousEvent
+
+from octoprint_adafruitlcd.printerStats import PrinterStats
+from octoprint_adafruitlcd.timers import carousel
 
 
 """
@@ -19,11 +22,6 @@ is actually correct, the event variable is used for
 differentiating between more specific events
 """
 
-_progress = 0
-_name = ''
-
-logger = None
-
 
 def on_print_event(event, payload):
     # type (str, dict) -> None
@@ -31,15 +29,17 @@ def on_print_event(event, payload):
     util.write_to_lcd(event, 0)
 
     if event is 'PrintDone':
+        globalVars.setEventVar('time', payload)
         carousel.stop()
         util.write_to_lcd("Time: " + format_time(payload['time']), 1)
         return
 
     if event is 'PrintStarted':
+        globalVars.setEventVar('name', payload)
+        carousel.start()
         util.create_custom_progress_bar()
         data.fileName = data.clean_file_name(payload['name'])
         util.write_to_lcd(data.fileName, 1)
-        carousel.startPrint()
 
 
 def on_connect_event(event, payload):
@@ -61,6 +61,7 @@ def on_error_event(event, payload):
     # type (str, dict) -> None
 
     util.clear()
+    globalVars.setEventVar('error', payload)
 
     util.write_to_lcd(event, 0, False)
     util.write_to_lcd(data.clean_file_name(payload['error']), 1, False)
@@ -68,6 +69,7 @@ def on_error_event(event, payload):
 
 def on_analysys_event(event, payload):
     # type (str, dict) -> None
+    globalVars.setEventVar('name', payload)
 
     if event is 'MetadataAnalysisStarted':
         util.write_to_lcd("Started Analysis", 0)
@@ -82,9 +84,11 @@ def on_analysys_event(event, payload):
 def on_slicing_event(event, payload):
     # type (str, dict) -> None
 
+    globalVars.setEventVar('stl', payload)
     util.write_to_lcd(data.clean_file_name(payload['stl']), 1)
 
     if event is 'SlicingDone':
+        globalVars.setEventVar('time', payload)
         minute = int(math.floor(payload['time'] / 60))
         second = int(math.floor(payload['time']) % 60)
         text = event + " {}:{}".format(minute, second)
@@ -101,15 +105,16 @@ def on_slicing_event(event, payload):
 
 def on_progress_event(event, payload):
     # type (str, dict) -> None
+    globalVars.setEventVar('progress', payload)
+    globalVars.setEventVar('name', payload)
 
-    global _progress
-    global _name
     _progress = payload['progress']
     _name = payload['name']
 
     if carousel.isPrinting and \
        carousel.EVENTS[carousel._current] is not 'self_progress':
-        logger.info("The progress bar should not be updated yet, skipping")
+        getLogger().info("The progress bar should not be updated yet, \
+            skipping")
         return
 
     switcher = {
@@ -132,13 +137,15 @@ def on_progress_event(event, payload):
 
 
 def on_time_left_event(event, payload):
+    globalVars.setEventVar('printTimeLeft', payload)
 
-    util.write_to_lcd("Left: " + format_time(payload['timeLeft']), 1)
+    util.write_to_lcd("Left: " + format_time(payload['printTimeLeft']), 1)
 
 
 def on_time_event(event, payload):
+    globalVars.setEventVar('printTime', payload)
 
-    util.write_to_lcd("Time: " + format_time(payload['time']), 1)
+    util.write_to_lcd("Time: " + format_time(payload['printTime']), 1)
 
 
 def format_time(seconds):
@@ -157,7 +164,7 @@ def _on_synchronous_event(eventManager, event, payload):
     Can not be called asynchronously.  To protect from asynchronous
     calls, use the SynchronousEventQueue class
     """
-    logger.info("Processing Event: {}".format(event))
+    getLogger().info("Processing Event: {}".format(event))
 
     if 'onnect' in event:
         on_connect_event(event, payload)
@@ -190,71 +197,12 @@ def on_event(event, payload):
     global _is_LCD_printing
     if not _is_LCD_printing:
         _is_LCD_printing = True
-        logger.debug("starting the {event} synchronous event".format(
+        getLogger().debug("starting the {event} synchronous event".format(
             event=event))
         _on_synchronous_event(_synchronous_events, event, payload)
         _is_LCD_printing = False
     else:
-        logger.debug("adding the {event} event to \
+        getLogger().debug("adding the {event} event to \
             the synchronous event queue".format(event=event))
         e = synchronousEvent.SynchronousEvent(event, payload)
         _synchronous_events.put(e)
-
-
-class carousel:
-    """
-    The carousel class is a static class, so no instance should be created
-    To setup the carousel, init should be called first
-    """
-
-    EVENTS = ['self_progress', 'self_time_left', 'self_time']
-    _current = 0
-
-    time_interval = 30
-    isPrinting = False
-
-    timer = None
-
-    @classmethod
-    def init(cls):
-        cls.timer = octoprint.util.RepeatedTimer(cls.interval, cls.on_event)
-
-    @classmethod
-    def startPrint(cls):
-        cls._current = 0
-        if cls.isPrinting or cls.timer.isAlive():
-            logger.error("Carousel is already running!  Restarting")
-            cls.timer.cancel()
-            cls.timer.start()
-            return
-        logger.debug("Starting print carousel")
-        cls.timer.start()
-        cls.isPrinting = True
-
-    @classmethod
-    def stop(cls):
-        logger.debug("Stopping print carousel")
-        cls.timer.cancel()
-        cls.isPrinting = False
-
-    @classmethod
-    def on_event(cls):
-        cls._current += 1
-        if cls._current >= len(cls.EVENTS):
-            cls._current = 0
-
-        event = cls.EVENTS[cls._current]
-
-        logger.info("Carousel Event: {}".format(event))
-
-        if event is 'self_time_left':
-            on_event(event, {
-                'timeLeft': PrinterStats.get_print_time_left()})
-        elif event is 'self_time':
-            on_event(event, {'time': PrinterStats.get_print_time()})
-        elif event is 'self_progress':
-            on_event(event, {'progress': _progress, 'name': _name})
-
-    @classmethod
-    def interval(cls):
-        return cls.time_interval

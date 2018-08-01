@@ -14,7 +14,8 @@ def getLCDText(text):
 
 
 def getPlugin():
-    plugin = adafruitLCD.Adafruit_16x2_LCD()
+    adafruitLCD.__plugin_load__()
+    plugin = adafruitLCD.__plugin_implementation__
 
     logging.basicConfig()
     plugin._logger = logging.getLogger("logging")

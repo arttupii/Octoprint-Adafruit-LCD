@@ -3,13 +3,12 @@ import math
 import re
 import Adafruit_CharLCD as LCD
 
+from octoprint_adafruitlcd.globalVars import getLogger
 from octoprint_adafruitlcd import data
 
 _lcd_enabled = True
 _lcd_light = False
 _current_lcd_text = [" " * data.lcd_width, " " * data.lcd_width]
-
-logger = None
 
 
 def init():
@@ -35,14 +34,14 @@ def enable_lcd(enable, force=False):
     global _lcd_enabled
 
     if force:
-        logger.info("{}abling lcd; forced: yes".format(
-                    'En' if enable else 'Dis'))
+        getLogger().info("{}abling lcd; forced: yes".format(
+                         'En' if enable else 'Dis'))
         data.lcd.enable_display(enable)
         _lcd_enabled = enable
     else:
         if _lcd_enabled is not enable:
-            logger.info("{}abling lcd; forced: no".format(
-                        'En' if enable else 'Dis'))
+            getLogger().info("{}abling lcd; forced: no".format(
+                             'En' if enable else 'Dis'))
             data.lcd.enable_display(enable)
             _lcd_enabled = enable
 
@@ -58,14 +57,14 @@ def light(on, force=False):
     global _lcd_light
 
     if force:
-        logger.debug("turning {} lcd light; forced: Yes".format(
-                     'on' if on else 'off'))
+        getLogger().debug("turning {} lcd light; forced: Yes".format(
+                          'on' if on else 'off'))
         data.lcd.set_backlight(1.0 if on else 0)
         _lcd_light = on
     else:
         if _lcd_light is not on:
-            logger.debug("turning {} lcd light; forced: No".format(
-                         'on' if on else 'off'))
+            getLogger().debug("turning {} lcd light; forced: No".format(
+                              'on' if on else 'off'))
             data.lcd.set_backlight(1.0 if on else 0)
             _lcd_light = on
 
@@ -81,8 +80,8 @@ def write_to_lcd(message, row, clear=True, column=0):
     :param clear: clear the line
     :param column: position to start writing
     """
-    logger.info("Writing to LCD: {}".format(
-                data.special_chars_to_num(message)))
+    getLogger().info("Writing to LCD: {}".format(
+                     data.special_chars_to_num(message)))
 
     enable_lcd(True)
     light(True)
@@ -107,7 +106,7 @@ def write_to_lcd(message, row, clear=True, column=0):
     # being written
     m = list(_current_lcd_text[row])
 
-    # logger.debug("Writing characters:")
+    # getLogger().debug("Writing characters:")
 
     # write each different character
     if len(diff) > 0:
@@ -121,7 +120,7 @@ def write_to_lcd(message, row, clear=True, column=0):
         # Write the next character
         data.lcd.write8(ord(message[i]), True)
         m[column + i] = message[i]
-        # logger.debug("  {}".format(data.special_chars_to_num(
+        # getLogger().debug("  {}".format(data.special_chars_to_num(
         #              str(message[i]))))
 
         # set last to the selected index
@@ -130,11 +129,11 @@ def write_to_lcd(message, row, clear=True, column=0):
     # update the lcd buffer with the newly written text
     _current_lcd_text[row] = "".join(m)
 
-    logger.debug("LCD now displays: ")
-    logger.debug("  '{}'".format(data.special_chars_to_num(
-                 _current_lcd_text[0])))
-    logger.debug("  '{}'".format(data.special_chars_to_num(
-                 _current_lcd_text[1])))
+    getLogger().debug("LCD now displays: ")
+    getLogger().debug("  '{}'".format(data.special_chars_to_num(
+                      _current_lcd_text[0])))
+    getLogger().debug("  '{}'".format(data.special_chars_to_num(
+                      _current_lcd_text[1])))
 
 
 def clear():

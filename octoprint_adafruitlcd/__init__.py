@@ -6,6 +6,8 @@ import octoprint.util
 import math
 import re
 
+
+from octoprint_adafruitlcd import globalVars
 from octoprint_adafruitlcd import data
 from octoprint_adafruitlcd import util
 from octoprint_adafruitlcd import events
@@ -26,9 +28,6 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         """
         Runs when plugin is started. Turn on and clear the LCD.
         """
-
-        util.logger = self._logger
-        events.logger = self._logger
 
         events.carousel.init()
 
@@ -116,4 +115,5 @@ __plugin_name__ = "Adafruit 16x2 LCD"
 
 def __plugin_load__():
     global __plugin_implementation__
-    __plugin_implementation__ = Adafruit_16x2_LCD()
+    globalVars.plugin_instance = Adafruit_16x2_LCD()
+    __plugin_implementation__ = globalVars.plugin_instance
