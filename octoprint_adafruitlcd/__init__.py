@@ -9,7 +9,6 @@ import re
 from octoprint_adafruitlcd import data
 from octoprint_adafruitlcd import util
 from octoprint_adafruitlcd import events
-from octoprint_adafruitlcd import printerStats
 from octoprint_adafruitlcd.printerStats import PrinterStats
 
 
@@ -30,7 +29,6 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
 
         util.logger = self._logger
         events.logger = self._logger
-        printerStats.logger = self._logger
 
         events.carousel.init()
 

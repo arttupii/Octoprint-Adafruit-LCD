@@ -1,7 +1,5 @@
 import octoprint.printer
 
-logger = None
-
 
 class PrinterStats(octoprint.printer.PrinterCallback):
     # http://docs.octoprint.org/en/master/modules/printer.html#octoprint.printer.PrinterCallback
@@ -13,7 +11,6 @@ class PrinterStats(octoprint.printer.PrinterCallback):
         """
         Called when the internal state of the Printer Interface changes
         """
-        logger.debug("Got printData")
         self.__class__.__progress_print_time = data['progress']['printTime']
         self.__class__.__progress_print_time_left = \
             data['progress']['printTimeLeft']
