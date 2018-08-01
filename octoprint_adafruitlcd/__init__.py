@@ -9,6 +9,7 @@ import re
 from octoprint_adafruitlcd import data
 from octoprint_adafruitlcd import util
 from octoprint_adafruitlcd import events
+from octoprint_adafruitlcd import printerStats
 from octoprint_adafruitlcd.printerStats import PrinterStats
 
 
