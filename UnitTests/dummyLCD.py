@@ -130,7 +130,7 @@ class Adafruit_CharLCD(object):
         
         self.__cursor = [0, 0]
 
-        self.__BACKLIGHT = True
+        self.__BACKLIGHT2 = 1.0
         self.__ENABLED = True
 
         # Save column and line state.
@@ -271,7 +271,7 @@ class Adafruit_CharLCD(object):
         turn it off.  If PWM is enabled, backlight can be any value from 0.0 to
         1.0, with 1.0 being full intensity backlight.
         """
-        self.__BACKLIGHT = backlight
+        self.__BACKLIGHT2 = backlight
         # if self._backlight is not None:
         #     if self._pwm_enabled:
         #          self._pwm.set_duty_cycle(self._backlight, self._pwm_duty_cycle(backlight))
@@ -350,9 +350,9 @@ class Adafruit_CharLCD(object):
         #type (int) -> str
         return self.__lcd_array[row]
     
-    def getBacklight(self):
+    def getBacklight2(self):
         #type () -> bool
-        return self.__BACKLIGHT
+        return self.__BACKLIGHT2
     
     def getEnabled(self):
         #type () -> bool
@@ -399,7 +399,7 @@ class Adafruit_RGBCharLCD(Adafruit_CharLCD):
                                                   gpio=None, 
                                                   pwm=None)
 
-        self.__BACKLIGHT = False
+        self.__BACKLIGHT = 1.0
 
         self._red = red
         self._green = green

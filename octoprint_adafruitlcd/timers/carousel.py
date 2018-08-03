@@ -1,14 +1,13 @@
 import octoprint.util
 
-from octoprint_adafruitlcd import globalVars
-from octoprint_adafruitlcd.globalVars import getLogger
+from octoprint_adafruitlcd import data
+from octoprint_adafruitlcd.data import getLogger
 
 
 EVENTS = ['self_progress', 'self_time_left', 'self_time']
 _current = 0
 
 time_interval = 30
-isPrinting = False
 
 _timer = None
 
@@ -18,16 +17,15 @@ def start():
     Start the carousel.  This should be called once when a print starts
     """
     global _current
-    global isPrinting
+
     _current = 0
-    if isPrinting or _timer.isAlive():
+    if _timer.isAlive():
         getLogger().error("Carousel is already running!  Restarting")
         _timer.cancel()
         _timer.start()
         return
     getLogger().debug("Starting print carousel")
     _timer.start()
-    isPrinting = True
 
 
 def stop():
@@ -36,8 +34,6 @@ def stop():
     """
     getLogger().debug("Stopping print carousel")
     _timer.cancel()
-    global isPrinting
-    isPrinting = False
 
 
 def getEvent():
@@ -58,13 +54,13 @@ def _on_event():
 
     getLogger().info("Carousel Event: {}".format(event))
 
-    globalVars.plugin_instance.on_event(event, globalVars.event_variables)
+    data.plugin_instance.on_event(event, data.event_variables)
 
 
 def _interval():
     return time_interval
 
 
-def init():
+def setup():
     global _timer
     _timer = octoprint.util.RepeatedTimer(_interval, _on_event)

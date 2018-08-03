@@ -3,7 +3,7 @@ import math
 import re
 import Adafruit_CharLCD as LCD
 
-from octoprint_adafruitlcd.globalVars import getLogger
+from octoprint_adafruitlcd.data import getLogger
 from octoprint_adafruitlcd import data
 
 _lcd_enabled = True
@@ -82,9 +82,6 @@ def write_to_lcd(message, row, clear=True, column=0):
     """
     getLogger().info("Writing to LCD: {}".format(
                      data.special_chars_to_num(message)))
-
-    enable_lcd(True)
-    light(True)
 
     # make sure the message fits in the display
     message = message[:data.lcd_width - column]

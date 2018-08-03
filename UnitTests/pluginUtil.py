@@ -17,13 +17,15 @@ def getPlugin():
     adafruitLCD.__plugin_load__()
     plugin = adafruitLCD.__plugin_implementation__
 
+    # Setup logger
     logging.basicConfig()
     plugin._logger = logging.getLogger("logging")
 
-    # plugin._logger.setLevel(10)  # debug
-    # plugin._logger.setLevel(20)  # info
     plugin._logger.setLevel(40)  # error
+    # plugin._logger.setLevel(20)  # info
+    # plugin._logger.setLevel(10)  # debug
 
+    # Setup Printer
     plugin._printer = printer
 
     plugin.on_startup(None, None)

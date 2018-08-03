@@ -1,14 +1,14 @@
 import math
 
-from octoprint_adafruitlcd import globalVars
-from octoprint_adafruitlcd.globalVars import getLogger
-
 from octoprint_adafruitlcd import data
+from octoprint_adafruitlcd.data import getLogger
+
 from octoprint_adafruitlcd import util
 from octoprint_adafruitlcd import synchronousEvent
 
 from octoprint_adafruitlcd.printerStats import PrinterStats
 from octoprint_adafruitlcd.timers import carousel
+from octoprint_adafruitlcd.timers import timeout
 
 
 """
@@ -29,14 +29,18 @@ def on_print_event(event, payload):
     util.write_to_lcd(event, 0)
 
     if event is 'PrintDone':
-        globalVars.setEventVar('time', payload)
+        data.setEventVar('time', payload)
+        data.is_printing = False
         carousel.stop()
+        timeout.reset()
         util.write_to_lcd("Time: " + format_time(payload['time']), 1)
         return
 
     if event is 'PrintStarted':
-        globalVars.setEventVar('name', payload)
+        data.setEventVar('name', payload)
+        data.is_printing = True
         carousel.start()
+        timeout.timer.cancel()
         util.create_custom_progress_bar()
         data.fileName = data.clean_file_name(payload['name'])
         util.write_to_lcd(data.fileName, 1)
@@ -45,23 +49,16 @@ def on_print_event(event, payload):
 def on_connect_event(event, payload):
     # type (str, dict) -> None
 
-    util.clear()
-
-    # turn off the lcd
-    if event is 'Disconnected':
-        util.light(False, True)
-        util.enable_lcd(False, True)
-        return
-
     # write the event to the screen
-    util.write_to_lcd(event, 0, False)
+    util.write_to_lcd(event, 0)
+    util.write_to_lcd("", 1)
 
 
 def on_error_event(event, payload):
     # type (str, dict) -> None
 
     util.clear()
-    globalVars.setEventVar('error', payload)
+    data.setEventVar('error', payload)
 
     util.write_to_lcd(event, 0, False)
     util.write_to_lcd(data.clean_file_name(payload['error']), 1, False)
@@ -69,7 +66,7 @@ def on_error_event(event, payload):
 
 def on_analysys_event(event, payload):
     # type (str, dict) -> None
-    globalVars.setEventVar('name', payload)
+    data.setEventVar('name', payload)
 
     if event is 'MetadataAnalysisStarted':
         util.write_to_lcd("Started Analysis", 0)
@@ -84,11 +81,11 @@ def on_analysys_event(event, payload):
 def on_slicing_event(event, payload):
     # type (str, dict) -> None
 
-    globalVars.setEventVar('stl', payload)
+    data.setEventVar('stl', payload)
     util.write_to_lcd(data.clean_file_name(payload['stl']), 1)
 
     if event is 'SlicingDone':
-        globalVars.setEventVar('time', payload)
+        data.setEventVar('time', payload)
         minute = int(math.floor(payload['time'] / 60))
         second = int(math.floor(payload['time']) % 60)
         text = event + " {}:{}".format(minute, second)
@@ -105,16 +102,16 @@ def on_slicing_event(event, payload):
 
 def on_progress_event(event, payload):
     # type (str, dict) -> None
-    globalVars.setEventVar('progress', payload)
-    globalVars.setEventVar('name', payload)
+    data.setEventVar('progress', payload)
+    data.setEventVar('name', payload)
 
     _progress = payload['progress']
     _name = payload['name']
 
-    if carousel.isPrinting and \
+    if data.is_printing and \
        carousel.EVENTS[carousel._current] is not 'self_progress':
-        getLogger().info("The progress bar should not be updated yet, \
-            skipping")
+        getLogger().info(
+            "The progress bar should not be updated yet, skipping")
         return
 
     switcher = {
@@ -137,13 +134,13 @@ def on_progress_event(event, payload):
 
 
 def on_time_left_event(event, payload):
-    globalVars.setEventVar('printTimeLeft', payload)
+    data.setEventVar('printTimeLeft', payload)
 
     util.write_to_lcd("Left: " + format_time(payload['printTimeLeft']), 1)
 
 
 def on_time_event(event, payload):
-    globalVars.setEventVar('printTime', payload)
+    data.setEventVar('printTime', payload)
 
     util.write_to_lcd("Time: " + format_time(payload['printTime']), 1)
 
@@ -164,6 +161,12 @@ def _on_synchronous_event(eventManager, event, payload):
     Can not be called asynchronously.  To protect from asynchronous
     calls, use the SynchronousEventQueue class
     """
+
+    # Only reset the timout timer if not printing.  The timer is disabled
+    # while printing, so we should not reset it
+    if not data.is_printing:
+        timeout.reset()
+
     getLogger().info("Processing Event: {}".format(event))
 
     if 'onnect' in event:
@@ -202,7 +205,7 @@ def on_event(event, payload):
         _on_synchronous_event(_synchronous_events, event, payload)
         _is_LCD_printing = False
     else:
-        getLogger().debug("adding the {event} event to \
-            the synchronous event queue".format(event=event))
+        getLogger().debug(("adding the {event} event to "
+                          + "the synchronous event queue").format(event=event))
         e = synchronousEvent.SynchronousEvent(event, payload)
         _synchronous_events.put(e)

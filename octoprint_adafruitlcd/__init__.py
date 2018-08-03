@@ -7,10 +7,13 @@ import math
 import re
 
 
-from octoprint_adafruitlcd import globalVars
 from octoprint_adafruitlcd import data
 from octoprint_adafruitlcd import util
 from octoprint_adafruitlcd import events
+
+from octoprint_adafruitlcd.timers import carousel
+from octoprint_adafruitlcd.timers import timeout
+
 from octoprint_adafruitlcd.printerStats import PrinterStats
 
 
@@ -24,12 +27,16 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
 
         util.init()
 
+        self._on = True
+
+    def on_startup(self, host, port):
+        carousel.setup()
+        timeout.setup()
+
     def on_after_startup(self):
         """
         Runs when plugin is started. Turn on and clear the LCD.
         """
-
-        events.carousel.init()
 
         self._logger.debug("Starting Verbose Debugger")
         self._logger.info("Adafruit 16x2 LCD starting")
@@ -59,7 +66,8 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
                          'Shutdown', 'self_']
         black_list = ['ConnectivityChanged', 'PrinterStateChanged', 'Profile']
         if any(e in event for e in useful_events) and \
-           not any(e in event for e in black_list):
+           not any(e in event for e in black_list) and \
+           self._on:
             self._logger.info("Event: {}".format(event))
         else:
             return
@@ -105,6 +113,9 @@ class Adafruit_16x2_LCD(octoprint.plugin.StartupPlugin,
         """
         Called on shutdown of OctoPrint. Turn off the LCD.
         """
+        self._on = False
+        timeout.timer.cancel()
+        carousel.stop()
         self._logger.info("Turning off LCD")
         util.light(False, True)
         util.enable_lcd(False, True)
@@ -115,5 +126,5 @@ __plugin_name__ = "Adafruit 16x2 LCD"
 
 def __plugin_load__():
     global __plugin_implementation__
-    globalVars.plugin_instance = Adafruit_16x2_LCD()
-    __plugin_implementation__ = globalVars.plugin_instance
+    data.plugin_instance = Adafruit_16x2_LCD()
+    __plugin_implementation__ = data.plugin_instance
